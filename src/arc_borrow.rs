@@ -38,7 +38,7 @@ impl<'a, T> ArcBorrow<'a, T> {
     /// Clone this as an `Arc<T, S>`. This bumps the refcount.
     #[inline]
     pub fn clone_arc<S>(&self) -> Arc<T, S>
-        where
+    where
         S: BackdropStrategy<Box<T>>,
     {
         let arc = unsafe { Arc::from_raw(self.0) };

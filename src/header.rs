@@ -152,7 +152,8 @@ where
     /// Creates an Arc for a HeaderSlice using the given header struct and
     /// a str slice to generate the slice. The resulting Arc will be fat.
     pub fn from_header_and_str(header: H, string: &str) -> Self {
-        let bytes: Arc<HeaderSlice<H, [u8]>, backdrop::TrivialStrategy> = Arc::from_header_and_slice(header, string.as_bytes());
+        let bytes: Arc<HeaderSlice<H, [u8]>, backdrop::TrivialStrategy> =
+            Arc::from_header_and_slice(header, string.as_bytes());
 
         // Safety: `ArcInner` and `HeaderSlice` are `repr(C)`, `str` has the same layout as `[u8]`,
         //         thus it's ok to "transmute" between `Arc<HeaderSlice<H, [u8]>>` and `Arc<HeaderSlice<H, str>>`.
@@ -222,7 +223,7 @@ where
 impl<S> From<&str> for Arc<str, S>
 where
     S: BackdropStrategy<Box<str>>,
-    S: BackdropStrategy<Box<HeaderSlice<(), str>>>
+    S: BackdropStrategy<Box<HeaderSlice<(), str>>>,
 {
     fn from(s: &str) -> Self {
         Arc::from_header_and_str((), s).into()
@@ -283,8 +284,7 @@ where
 impl<T, S> From<Vec<T>> for Arc<[T], S>
 where
     S: BackdropStrategy<Box<[T]>>,
-    S: BackdropStrategy<Box<HeaderSlice<(), [T]>>>
-
+    S: BackdropStrategy<Box<HeaderSlice<(), [T]>>>,
 {
     fn from(v: Vec<T>) -> Self {
         Arc::from_header_and_vec((), v).into()
@@ -295,10 +295,10 @@ pub(crate) type HeaderSliceWithLength<H, T> = HeaderSlice<HeaderWithLength<H>, T
 
 #[cfg(test)]
 mod tests {
+    use super::backdrop::TrivialStrategy;
     use alloc::boxed::Box;
     use alloc::string::String;
     use alloc::vec;
-    use super::backdrop::TrivialStrategy;
     use core::iter;
 
     use crate::{Arc, HeaderSlice};
@@ -316,7 +316,10 @@ mod tests {
 
     #[test]
     fn from_header_and_slice_smoke() {
-        let arc = Arc::<_, TrivialStrategy>::from_header_and_slice((42u32, 17u8), &[1u16, 2, 3, 4, 5, 6, 7]);
+        let arc = Arc::<_, TrivialStrategy>::from_header_and_slice(
+            (42u32, 17u8),
+            &[1u16, 2, 3, 4, 5, 6, 7],
+        );
 
         assert_eq!(arc.header, (42, 17));
         assert_eq!(arc.slice, [1u16, 2, 3, 4, 5, 6, 7]);
@@ -324,7 +327,10 @@ mod tests {
 
     #[test]
     fn from_header_and_vec_smoke() {
-        let arc = Arc::<_, TrivialStrategy>::from_header_and_vec((42u32, 17u8), vec![1u16, 2, 3, 4, 5, 6, 7]);
+        let arc = Arc::<_, TrivialStrategy>::from_header_and_vec(
+            (42u32, 17u8),
+            vec![1u16, 2, 3, 4, 5, 6, 7],
+        );
 
         assert_eq!(arc.header, (42, 17));
         assert_eq!(arc.slice, [1u16, 2, 3, 4, 5, 6, 7]);
@@ -332,7 +338,8 @@ mod tests {
 
     #[test]
     fn from_header_and_iter_empty() {
-        let arc = Arc::<_, TrivialStrategy>::from_header_and_iter((42u32, 17u8), iter::empty::<u16>());
+        let arc =
+            Arc::<_, TrivialStrategy>::from_header_and_iter((42u32, 17u8), iter::empty::<u16>());
 
         assert_eq!(arc.header, (42, 17));
         assert_eq!(arc.slice, []);
@@ -384,7 +391,8 @@ mod tests {
 
     #[test]
     fn erase_and_create_from_thin_air_header() {
-        let a: Arc<HeaderSlice<(), [u32]>, TrivialStrategy> = Arc::from_header_and_slice((), &[12, 17, 16]);
+        let a: Arc<HeaderSlice<(), [u32]>, TrivialStrategy> =
+            Arc::from_header_and_slice((), &[12, 17, 16]);
         let b: Arc<[u32], TrivialStrategy> = a.into();
 
         assert_eq!(&*b, [12, 17, 16]);

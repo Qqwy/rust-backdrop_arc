@@ -34,22 +34,16 @@ use super::{Arc, ArcBorrow};
 #[derive(Eq)]
 #[repr(transparent)]
 pub struct OffsetArc<T, S>
-    where
-         S: BackdropStrategy<Box<T>>,
+where
+    S: BackdropStrategy<Box<T>>,
 {
     pub(crate) ptr: ptr::NonNull<T>,
     pub(crate) phantom: PhantomData<T>,
     pub(crate) phantom_strategy: PhantomData<S>,
 }
 
-unsafe impl<T: Sync + Send, S> Send for OffsetArc<T, S>
-where
-    S: BackdropStrategy<Box<T>>,
-{}
-unsafe impl<T: Sync + Send, S> Sync for OffsetArc<T, S>
-where
-    S: BackdropStrategy<Box<T>>,
-{}
+unsafe impl<T: Sync + Send, S> Send for OffsetArc<T, S> where S: BackdropStrategy<Box<T>> {}
+unsafe impl<T: Sync + Send, S> Sync for OffsetArc<T, S> where S: BackdropStrategy<Box<T>> {}
 
 impl<T, S> Deref for OffsetArc<T, S>
 where

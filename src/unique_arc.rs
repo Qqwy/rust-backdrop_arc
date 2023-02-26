@@ -87,7 +87,7 @@ impl<T, S: BackdropStrategy<Box<MaybeUninit<T>>>> UniqueArc<MaybeUninit<T>, S> {
 }
 
 impl<T: ?Sized, S> UniqueArc<T, S>
-    where
+where
     S: BackdropStrategy<Box<T>>,
 {
     /// Convert to a shareable Arc<T, S> once we're done mutating it
@@ -223,7 +223,7 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> DerefMut for UniqueArc<T, S> {
 }
 
 impl<A, S> FromIterator<A> for UniqueArc<[A], S>
-    where
+where
     S: BackdropStrategy<Box<HeaderSlice<(), [A]>>>,
     S: BackdropStrategy<Box<[A]>>,
 {

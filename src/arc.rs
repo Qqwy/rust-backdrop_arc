@@ -55,14 +55,8 @@ pub struct Arc<T: ?Sized, S: BackdropStrategy<Box<T>>> {
     pub(crate) phantom_strategy: PhantomData<S>,
 }
 
-unsafe impl<T: ?Sized + Sync + Send, S> Send for Arc<T, S>
-where
-    S: BackdropStrategy<Box<T>>
-{}
-unsafe impl<T: ?Sized + Sync + Send, S> Sync for Arc<T, S>
-where
-    S: BackdropStrategy<Box<T>>
-{}
+unsafe impl<T: ?Sized + Sync + Send, S> Send for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
+unsafe impl<T: ?Sized + Sync + Send, S> Sync for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
 
 impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     /// Construct an `Arc<T, S>`
@@ -368,7 +362,7 @@ impl<H, T, S: BackdropStrategy<Box<HeaderSlice<H, [T]>>>> Arc<HeaderSlice<H, [T]
 }
 
 impl<T, S> Arc<MaybeUninit<T>, S>
-    where
+where
     S: BackdropStrategy<Box<MaybeUninit<T>>>,
     S: BackdropStrategy<Box<T>>,
 {
@@ -717,10 +711,7 @@ where
     }
 }
 
-impl<T: ?Sized + Eq, S> Eq for Arc<T, S>
-where
-    S: BackdropStrategy<Box<T>>,
-{}
+impl<T: ?Sized + Eq, S> Eq for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
 
 impl<T: ?Sized + fmt::Display, S> fmt::Display for Arc<T, S>
 where
@@ -806,15 +797,9 @@ where
 }
 
 #[cfg(feature = "stable_deref_trait")]
-unsafe impl<T: ?Sized, S> StableDeref for Arc<T, S>
-where
-    S: BackdropStrategy<Box<T>>,
-{}
+unsafe impl<T: ?Sized, S> StableDeref for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
 #[cfg(feature = "stable_deref_trait")]
-unsafe impl<T: ?Sized, S> CloneStableDeref for Arc<T, S>
-where
-    S: BackdropStrategy<Box<T>>,
-{}
+unsafe impl<T: ?Sized, S> CloneStableDeref for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
 
 #[cfg(feature = "serde")]
 impl<'de, T: Deserialize<'de>, S> Deserialize<'de> for Arc<T, S>
@@ -888,11 +873,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::backdrop::TrivialStrategy;
     use crate::arc::Arc;
     use alloc::borrow::ToOwned;
     use alloc::string::String;
     use alloc::vec::Vec;
-    use super::backdrop::TrivialStrategy;
     use core::iter::FromIterator;
     use core::mem::MaybeUninit;
     #[cfg(feature = "unsize")]
@@ -1014,7 +999,10 @@ mod tests {
 
     #[test]
     fn from_iterator_exact_size() {
-        let arc = Arc::<_, TrivialStrategy>::from_iter(Vec::from_iter(["ololo".to_owned(), "trololo".to_owned()]));
+        let arc = Arc::<_, TrivialStrategy>::from_iter(Vec::from_iter([
+            "ololo".to_owned(),
+            "trololo".to_owned(),
+        ]));
         assert_eq!(1, Arc::count(&arc));
         assert_eq!(["ololo".to_owned(), "trololo".to_owned()], *arc);
     }

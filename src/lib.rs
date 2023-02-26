@@ -77,8 +77,8 @@ pub use arc_union::*;
 pub use header::*;
 pub use offset_arc::*;
 // pub use thin_arc::*;
-pub use unique_arc::*;
 pub use backdrop::*;
+pub use unique_arc::*;
 
 #[cfg(feature = "std")]
 use std::process::abort;

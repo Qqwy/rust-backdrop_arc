@@ -32,12 +32,14 @@ unsafe impl<A: Sync + Send, B: Send + Sync, S> Send for ArcUnion<A, B, S>
 where
     S: BackdropStrategy<Box<A>>,
     S: BackdropStrategy<Box<B>>,
-{}
+{
+}
 unsafe impl<A: Sync + Send, B: Send + Sync, S> Sync for ArcUnion<A, B, S>
-    where
+where
     S: BackdropStrategy<Box<A>>,
     S: BackdropStrategy<Box<B>>,
-{}
+{
+}
 
 impl<A: PartialEq, B: PartialEq, S> PartialEq for ArcUnion<A, B, S>
 where
