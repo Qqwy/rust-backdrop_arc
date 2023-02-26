@@ -150,7 +150,7 @@ impl<T, S> Arc<T, S> {
     }
 }
 
-impl<T> Arc<[T]> {
+impl<T, S> Arc<[T], S> {
     /// Reconstruct the `Arc<[T]>` from a raw pointer obtained from `into_raw()`.
     ///
     /// [`Arc::from_raw`] should accept unsized types, but this is not trivial to do correctly
@@ -169,7 +169,7 @@ impl<T> Arc<[T]> {
     }
 }
 
-impl<T: ?Sized> Arc<T, S> {
+impl<T: ?Sized, S> Arc<T, S> {
     /// Convert the Arc<T, S> to a raw pointer, suitable for use across FFI
     ///
     /// Note: This returns a pointer to the data T, which is offset in the allocation.
@@ -222,6 +222,7 @@ impl<T: ?Sized> Arc<T, S> {
         Arc {
             p: ptr::NonNull::new_unchecked(ptr),
             phantom: PhantomData,
+            phantom_strategy: PhantomData,
         }
     }
 
@@ -324,7 +325,7 @@ impl<T: ?Sized> Arc<T, S> {
     }
 }
 
-impl<H, T> Arc<HeaderSlice<H, [T]>> {
+impl<H, T, S> Arc<HeaderSlice<H, [T]>, S> {
     pub(super) fn allocate_for_header_and_slice(
         len: usize,
     ) -> NonNull<ArcInner<HeaderSlice<H, [T]>>> {
@@ -352,7 +353,7 @@ impl<H, T> Arc<HeaderSlice<H, [T]>> {
     }
 }
 
-impl<T> Arc<MaybeUninit<T>> {
+impl<T, S> Arc<MaybeUninit<T>, S> {
     /// Create an Arc contains an `MaybeUninit<T>`.
     pub fn new_uninit() -> Self {
         Arc::new(MaybeUninit::<T>::uninit())
@@ -386,7 +387,7 @@ impl<T> Arc<MaybeUninit<T>> {
     }
 }
 
-impl<T> Arc<[MaybeUninit<T>]> {
+impl<T, S> Arc<[MaybeUninit<T>], S> {
     /// Create an Arc contains an array `[MaybeUninit<T>]` of `len`.
     pub fn new_uninit_slice(len: usize) -> Self {
         UniqueArc::new_uninit_slice(len).shareable()
@@ -406,12 +407,12 @@ impl<T> Arc<[MaybeUninit<T>]> {
     ///
     /// Must initialize all fields before calling this function.
     #[inline]
-    pub unsafe fn assume_init(self) -> Arc<[T]> {
+    pub unsafe fn assume_init(self) -> Arc<[T], S> {
         Arc::from_raw_inner(ManuallyDrop::new(self).ptr() as _)
     }
 }
 
-impl<T: ?Sized> Clone for Arc<T, S> {
+impl<T: ?Sized, S> Clone for Arc<T, S> {
     #[inline]
     fn clone(&self) -> Self {
         // Using a relaxed ordering is alright here, as knowledge of the
@@ -444,12 +445,13 @@ impl<T: ?Sized> Clone for Arc<T, S> {
             Arc {
                 p: ptr::NonNull::new_unchecked(self.ptr()),
                 phantom: PhantomData,
+                phantom_strategy: PhantomData,
             }
         }
     }
 }
 
-impl<T: ?Sized> Deref for Arc<T, S> {
+impl<T: ?Sized, S> Deref for Arc<T, S> {
     type Target = T;
 
     #[inline]
@@ -458,7 +460,7 @@ impl<T: ?Sized> Deref for Arc<T, S> {
     }
 }
 
-impl<T: Clone> Arc<T, S> {
+impl<T: Clone, S> Arc<T, S> {
     /// Makes a mutable reference to the `Arc`, cloning if necessary
     ///
     /// This is functionally equivalent to [`Arc::make_mut`][mm] from the standard library.
@@ -519,7 +521,7 @@ impl<T: Clone> Arc<T, S> {
     }
 }
 
-impl<T: ?Sized> Arc<T, S> {
+impl<T: ?Sized, S> Arc<T, S> {
     /// Provides mutable access to the contents _if_ the `Arc` is uniquely owned.
     #[inline]
     pub fn get_mut(this: &mut Self) -> Option<&mut T> {
@@ -592,7 +594,7 @@ impl<T: ?Sized> Arc<T, S> {
     }
 }
 
-impl<T: ?Sized> Drop for Arc<T, S> {
+impl<T: ?Sized, S> Drop for Arc<T, S> {
     #[inline]
     fn drop(&mut self) {
         // Because `fetch_sub` is already atomic, we do not need to synchronize
@@ -629,7 +631,7 @@ impl<T: ?Sized> Drop for Arc<T, S> {
     }
 }
 
-impl<T: ?Sized + PartialEq> PartialEq for Arc<T, S> {
+impl<T: ?Sized + PartialEq, S> PartialEq for Arc<T, S> {
     fn eq(&self, other: &Arc<T, S>) -> bool {
         Self::ptr_eq(self, other) || *(*self) == *(*other)
     }
@@ -640,7 +642,7 @@ impl<T: ?Sized + PartialEq> PartialEq for Arc<T, S> {
     }
 }
 
-impl<T: ?Sized + PartialOrd> PartialOrd for Arc<T, S> {
+impl<T: ?Sized + PartialOrd, S> PartialOrd for Arc<T, S> {
     fn partial_cmp(&self, other: &Arc<T, S>) -> Option<Ordering> {
         (**self).partial_cmp(&**other)
     }
@@ -662,66 +664,66 @@ impl<T: ?Sized + PartialOrd> PartialOrd for Arc<T, S> {
     }
 }
 
-impl<T: ?Sized + Ord> Ord for Arc<T, S> {
+impl<T: ?Sized + Ord, S> Ord for Arc<T, S> {
     fn cmp(&self, other: &Arc<T, S>) -> Ordering {
         (**self).cmp(&**other)
     }
 }
 
-impl<T: ?Sized + Eq> Eq for Arc<T, S> {}
+impl<T: ?Sized + Eq, S> Eq for Arc<T, S> {}
 
-impl<T: ?Sized + fmt::Display> fmt::Display for Arc<T, S> {
+impl<T: ?Sized + fmt::Display, S> fmt::Display for Arc<T, S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
     }
 }
 
-impl<T: ?Sized + fmt::Debug> fmt::Debug for Arc<T, S> {
+impl<T: ?Sized + fmt::Debug, S> fmt::Debug for Arc<T, S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<T: ?Sized> fmt::Pointer for Arc<T, S> {
+impl<T: ?Sized, S> fmt::Pointer for Arc<T, S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Pointer::fmt(&self.ptr(), f)
     }
 }
 
-impl<T: Default> Default for Arc<T, S> {
+impl<T: Default, S> Default for Arc<T, S> {
     #[inline]
     fn default() -> Arc<T, S> {
         Arc::new(Default::default())
     }
 }
 
-impl<T: ?Sized + Hash> Hash for Arc<T, S> {
+impl<T: ?Sized + Hash, S> Hash for Arc<T, S> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         (**self).hash(state)
     }
 }
 
-impl<T> From<T> for Arc<T, S> {
+impl<T, S> From<T> for Arc<T, S> {
     #[inline]
     fn from(t: T) -> Self {
         Arc::new(t)
     }
 }
 
-impl<A> FromIterator<A> for Arc<[A]> {
+impl<A, S> FromIterator<A> for Arc<[A], S> {
     fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
         UniqueArc::from_iter(iter).shareable()
     }
 }
 
-impl<T: ?Sized> borrow::Borrow<T> for Arc<T, S> {
+impl<T: ?Sized, S> borrow::Borrow<T> for Arc<T, S> {
     #[inline]
     fn borrow(&self) -> &T {
         &**self
     }
 }
 
-impl<T: ?Sized> AsRef<T> for Arc<T, S> {
+impl<T: ?Sized, S> AsRef<T> for Arc<T, S> {
     #[inline]
     fn as_ref(&self) -> &T {
         &**self
@@ -734,7 +736,7 @@ unsafe impl<T: ?Sized> StableDeref for Arc<T, S> {}
 unsafe impl<T: ?Sized> CloneStableDeref for Arc<T, S> {}
 
 #[cfg(feature = "serde")]
-impl<'de, T: Deserialize<'de>> Deserialize<'de> for Arc<T, S> {
+impl<'de, T: Deserialize<'de>, S> Deserialize<'de> for Arc<T, S> {
     fn deserialize<D>(deserializer: D) -> Result<Arc<T, S>, D::Error>
     where
         D: ::serde::de::Deserializer<'de>,
@@ -744,10 +746,10 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for Arc<T, S> {
 }
 
 #[cfg(feature = "serde")]
-impl<T: Serialize> Serialize for Arc<T, S> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl<T: Serialize, S> Serialize for Arc<T, S> {
+    fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
     where
-        S: ::serde::ser::Serializer,
+        Ser: ::serde::ser::Serializer,
     {
         (**self).serialize(serializer)
     }
@@ -787,7 +789,7 @@ unsafe impl<T, U: ?Sized> unsize::CoerciblePtr<U> for Arc<T, S> {
 }
 
 #[track_caller]
-fn must_be_unique<T: ?Sized>(arc: &mut Arc<T, S>) -> &mut UniqueArc<T, S> {
+fn must_be_unique<T: ?Sized, S>(arc: &mut Arc<T, S>) -> &mut UniqueArc<T, S> {
     match Arc::try_as_unique(arc) {
         Ok(unique) => unique,
         Err(this) => panic!("`Arc` must be unique in order for this operation to be safe, there are currently {} copies", Arc::count(this)),
