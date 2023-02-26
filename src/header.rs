@@ -298,13 +298,14 @@ mod tests {
     use alloc::boxed::Box;
     use alloc::string::String;
     use alloc::vec;
+    use super::backdrop::TrivialStrategy;
     use core::iter;
 
     use crate::{Arc, HeaderSlice};
 
     #[test]
     fn from_header_and_iter_smoke() {
-        let arc = Arc::from_header_and_iter(
+        let arc = Arc::<_, TrivialStrategy>::from_header_and_iter(
             (42u32, 17u8),
             IntoIterator::into_iter([1u16, 2, 3, 4, 5, 6, 7]),
         );
@@ -315,7 +316,7 @@ mod tests {
 
     #[test]
     fn from_header_and_slice_smoke() {
-        let arc = Arc::from_header_and_slice((42u32, 17u8), &[1u16, 2, 3, 4, 5, 6, 7]);
+        let arc = Arc::<_, TrivialStrategy>::from_header_and_slice((42u32, 17u8), &[1u16, 2, 3, 4, 5, 6, 7]);
 
         assert_eq!(arc.header, (42, 17));
         assert_eq!(arc.slice, [1u16, 2, 3, 4, 5, 6, 7]);
@@ -323,7 +324,7 @@ mod tests {
 
     #[test]
     fn from_header_and_vec_smoke() {
-        let arc = Arc::from_header_and_vec((42u32, 17u8), vec![1u16, 2, 3, 4, 5, 6, 7]);
+        let arc = Arc::<_, TrivialStrategy>::from_header_and_vec((42u32, 17u8), vec![1u16, 2, 3, 4, 5, 6, 7]);
 
         assert_eq!(arc.header, (42, 17));
         assert_eq!(arc.slice, [1u16, 2, 3, 4, 5, 6, 7]);
@@ -331,7 +332,7 @@ mod tests {
 
     #[test]
     fn from_header_and_iter_empty() {
-        let arc = Arc::from_header_and_iter((42u32, 17u8), iter::empty::<u16>());
+        let arc = Arc::<_, TrivialStrategy>::from_header_and_iter((42u32, 17u8), iter::empty::<u16>());
 
         assert_eq!(arc.header, (42, 17));
         assert_eq!(arc.slice, []);
@@ -339,7 +340,7 @@ mod tests {
 
     #[test]
     fn from_header_and_slice_empty() {
-        let arc = Arc::from_header_and_slice((42u32, 17u8), &[1u16; 0]);
+        let arc = Arc::<_, TrivialStrategy>::from_header_and_slice((42u32, 17u8), &[1u16; 0]);
 
         assert_eq!(arc.header, (42, 17));
         assert_eq!(arc.slice, []);
@@ -347,7 +348,7 @@ mod tests {
 
     #[test]
     fn from_header_and_vec_empty() {
-        let arc = Arc::from_header_and_vec((42u32, 17u8), vec![1u16; 0]);
+        let arc = Arc::<_, TrivialStrategy>::from_header_and_vec((42u32, 17u8), vec![1u16; 0]);
 
         assert_eq!(arc.header, (42, 17));
         assert_eq!(arc.slice, []);
@@ -355,18 +356,18 @@ mod tests {
 
     #[test]
     fn issue_13_empty() {
-        crate::Arc::from_header_and_iter((), iter::empty::<usize>());
+        crate::Arc::<_, TrivialStrategy>::from_header_and_iter((), iter::empty::<usize>());
     }
 
     #[test]
     fn issue_13_consumption() {
         let s: &[u8] = &[0u8; 255];
-        crate::Arc::from_header_and_iter((), s.iter().copied());
+        crate::Arc::<_, TrivialStrategy>::from_header_and_iter((), s.iter().copied());
     }
 
     #[test]
     fn from_header_and_str_smoke() {
-        let a = Arc::from_header_and_str(
+        let a = Arc::<_, TrivialStrategy>::from_header_and_str(
             42,
             "The answer to the ultimate question of life, the universe, and everything",
         );
@@ -376,19 +377,19 @@ mod tests {
             "The answer to the ultimate question of life, the universe, and everything"
         );
 
-        let empty = Arc::from_header_and_str((), "");
+        let empty = Arc::<_, TrivialStrategy>::from_header_and_str((), "");
         assert_eq!(empty.header, ());
         assert_eq!(&empty.slice, "");
     }
 
     #[test]
     fn erase_and_create_from_thin_air_header() {
-        let a: Arc<HeaderSlice<(), [u32]>> = Arc::from_header_and_slice((), &[12, 17, 16]);
-        let b: Arc<[u32]> = a.into();
+        let a: Arc<HeaderSlice<(), [u32]>, TrivialStrategy> = Arc::from_header_and_slice((), &[12, 17, 16]);
+        let b: Arc<[u32], TrivialStrategy> = a.into();
 
         assert_eq!(&*b, [12, 17, 16]);
 
-        let c: Arc<HeaderSlice<(), [u32]>> = b.into();
+        let c: Arc<HeaderSlice<(), [u32]>, TrivialStrategy> = b.into();
 
         assert_eq!(&c.slice, [12, 17, 16]);
         assert_eq!(c.header, ());
@@ -397,11 +398,11 @@ mod tests {
     #[test]
     fn from_box_and_vec() {
         let b = Box::new(String::from("xxx"));
-        let b = Arc::<String>::from(b);
+        let b = Arc::<String, TrivialStrategy>::from(b);
         assert_eq!(&*b, "xxx");
 
         let v = vec![String::from("1"), String::from("2"), String::from("3")];
-        let v = Arc::<[_]>::from(v);
+        let v = Arc::<[_], TrivialStrategy>::from(v);
         assert_eq!(
             &*v,
             [String::from("1"), String::from("2"), String::from("3")]
@@ -409,7 +410,7 @@ mod tests {
 
         let mut v = vec![String::from("1"), String::from("2"), String::from("3")];
         v.reserve(10);
-        let v = Arc::<[_]>::from(v);
+        let v = Arc::<[_], TrivialStrategy>::from(v);
         assert_eq!(
             &*v,
             [String::from("1"), String::from("2"), String::from("3")]

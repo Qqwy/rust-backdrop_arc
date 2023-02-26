@@ -266,18 +266,20 @@ unsafe impl<T, U: ?Sized> unsize::CoerciblePtr<U> for UniqueArc<T, S> {
 
 #[cfg(test)]
 mod tests {
+    use super::backdrop::TrivialStrategy;
+
     use crate::{Arc, UniqueArc};
     use core::{convert::TryFrom, mem::MaybeUninit};
 
     #[test]
     fn unique_into_inner() {
-        let unique = UniqueArc::new(10u64);
+        let unique = UniqueArc::<_, TrivialStrategy>::new(10u64);
         assert_eq!(UniqueArc::into_inner(unique), 10);
     }
 
     #[test]
     fn try_from_arc() {
-        let x = Arc::new(10_000);
+        let x = Arc::<_, TrivialStrategy>::new(10_000);
         let y = x.clone();
 
         assert!(UniqueArc::try_from(x).is_err());
@@ -290,7 +292,7 @@ mod tests {
     #[test]
     #[allow(deprecated)]
     fn maybeuninit_smoke() {
-        let mut arc: UniqueArc<MaybeUninit<_>> = UniqueArc::new_uninit();
+        let mut arc: UniqueArc<MaybeUninit<_>, TrivialStrategy> = UniqueArc::new_uninit();
         arc.write(999);
 
         let arc = unsafe { UniqueArc::assume_init(arc) };

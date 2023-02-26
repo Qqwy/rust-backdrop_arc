@@ -892,6 +892,7 @@ mod tests {
     use alloc::borrow::ToOwned;
     use alloc::string::String;
     use alloc::vec::Vec;
+    use super::backdrop::TrivialStrategy;
     use core::iter::FromIterator;
     use core::mem::MaybeUninit;
     #[cfg(feature = "unsize")]
@@ -899,7 +900,7 @@ mod tests {
 
     #[test]
     fn try_unwrap() {
-        let x = Arc::new(100usize);
+        let x = Arc::<_, TrivialStrategy>::new(100usize);
         let y = x.clone();
 
         // The count should be two so `try_unwrap()` should fail
@@ -916,22 +917,22 @@ mod tests {
     #[cfg(feature = "unsize")]
     fn coerce_to_slice() {
         let x = Arc::new([0u8; 4]);
-        let y: Arc<[u8]> = x.clone().unsize(Coercion::to_slice());
+        let y: Arc<[u8], TrivialStrategy> = x.clone().unsize(Coercion::to_slice());
         assert_eq!((*x).as_ptr(), (*y).as_ptr());
     }
 
     #[test]
     #[cfg(feature = "unsize")]
     fn coerce_to_dyn() {
-        let x: Arc<_> = Arc::new(|| 42u32);
-        let x: Arc<_> = x.unsize(Coercion::<_, dyn Fn() -> u32>::to_fn());
+        let x: Arc<_, TrivialStrategy> = Arc::new(|| 42u32);
+        let x: Arc<_, TrivialStrategy> = x.unsize(Coercion::<_, dyn Fn() -> u32>::to_fn());
         assert_eq!((*x)(), 42);
     }
 
     #[test]
     #[allow(deprecated)]
     fn maybeuninit() {
-        let mut arc: Arc<MaybeUninit<_>> = Arc::new_uninit();
+        let mut arc: Arc<MaybeUninit<_>, TrivialStrategy> = Arc::new_uninit();
         arc.write(999);
 
         let arc = unsafe { arc.assume_init() };
@@ -942,7 +943,7 @@ mod tests {
     #[allow(deprecated)]
     #[should_panic = "`Arc` must be unique in order for this operation to be safe"]
     fn maybeuninit_ub_to_proceed() {
-        let mut uninit = Arc::new_uninit();
+        let mut uninit = Arc::<_, TrivialStrategy>::new_uninit();
         let clone = uninit.clone();
 
         let x: &MaybeUninit<String> = &*clone;
@@ -958,7 +959,7 @@ mod tests {
     #[allow(deprecated)]
     #[should_panic = "`Arc` must be unique in order for this operation to be safe"]
     fn maybeuninit_slice_ub_to_proceed() {
-        let mut uninit = Arc::new_uninit_slice(13);
+        let mut uninit = Arc::<_, TrivialStrategy>::new_uninit_slice(13);
         let clone = uninit.clone();
 
         let x: &[MaybeUninit<String>] = &*clone;
@@ -972,7 +973,7 @@ mod tests {
 
     #[test]
     fn maybeuninit_array() {
-        let mut arc: Arc<[MaybeUninit<_>]> = Arc::new_uninit_slice(5);
+        let mut arc: Arc<[MaybeUninit<_>], TrivialStrategy> = Arc::new_uninit_slice(5);
         assert!(arc.is_unique());
         #[allow(deprecated)]
         for (uninit, index) in arc.as_mut_slice().iter_mut().zip(0..5) {
@@ -1004,23 +1005,23 @@ mod tests {
 
     #[test]
     fn roundtrip() {
-        let arc: Arc<usize> = Arc::new(0usize);
+        let arc: Arc<usize, TrivialStrategy> = Arc::new(0usize);
         let ptr = Arc::into_raw(arc);
         unsafe {
-            let _arc = Arc::from_raw(ptr);
+            let _arc = Arc::<_, TrivialStrategy>::from_raw(ptr);
         }
     }
 
     #[test]
     fn from_iterator_exact_size() {
-        let arc = Arc::from_iter(Vec::from_iter(["ololo".to_owned(), "trololo".to_owned()]));
+        let arc = Arc::<_, TrivialStrategy>::from_iter(Vec::from_iter(["ololo".to_owned(), "trololo".to_owned()]));
         assert_eq!(1, Arc::count(&arc));
         assert_eq!(["ololo".to_owned(), "trololo".to_owned()], *arc);
     }
 
     #[test]
     fn from_iterator_unknown_size() {
-        let arc = Arc::from_iter(
+        let arc = Arc::<_, TrivialStrategy>::from_iter(
             Vec::from_iter(["ololo".to_owned(), "trololo".to_owned()])
                 .into_iter()
                 // Filter is opaque to iterators, so the resulting iterator
@@ -1033,9 +1034,9 @@ mod tests {
 
     #[test]
     fn roundtrip_slice() {
-        let arc = Arc::from(Vec::from_iter([17, 19]));
-        let ptr = Arc::into_raw(arc);
-        let arc = unsafe { Arc::from_raw_slice(ptr) };
+        let arc = Arc::<_, TrivialStrategy>::from(Vec::from_iter([17, 19]));
+        let ptr = Arc::<_, TrivialStrategy>::into_raw(arc);
+        let arc = unsafe { Arc::<_, TrivialStrategy>::from_raw_slice(ptr) };
         assert_eq!([17, 19], *arc);
         assert_eq!(1, Arc::count(&arc));
     }
