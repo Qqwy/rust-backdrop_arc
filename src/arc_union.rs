@@ -3,6 +3,9 @@ use core::marker::PhantomData;
 use core::ptr;
 use core::usize;
 
+extern crate backdrop;
+use self::backdrop::BackdropStrategy;
+
 use super::{Arc, ArcBorrow};
 
 /// A tagged union that can represent `Arc<A>` or `Arc<B>` while only consuming a
@@ -14,16 +17,25 @@ use super::{Arc, ArcBorrow};
 /// up a single word of stack space.
 ///
 /// This could probably be extended to support four types if necessary.
-pub struct ArcUnion<A, B> {
+pub struct ArcUnion<A, B, S> {
     p: ptr::NonNull<()>,
     phantom_a: PhantomData<A>,
     phantom_b: PhantomData<B>,
+    phantom_strategy: PhantomData<S>,
 }
 
-unsafe impl<A: Sync + Send, B: Send + Sync> Send for ArcUnion<A, B> {}
-unsafe impl<A: Sync + Send, B: Send + Sync> Sync for ArcUnion<A, B> {}
+unsafe impl<A: Sync + Send, B: Send + Sync, S> Send for ArcUnion<A, B, S> {}
+unsafe impl<A: Sync + Send, B: Send + Sync, S> Sync for ArcUnion<A, B, S>
+    where
+    S: BackdropStrategy<Box<A>>,
+    S: BackdropStrategy<Box<B>>,
+{}
 
-impl<A: PartialEq, B: PartialEq> PartialEq for ArcUnion<A, B> {
+impl<A: PartialEq, B: PartialEq, S> PartialEq for ArcUnion<A, B, S>
+where
+    S: BackdropStrategy<Box<A>>,
+    S: BackdropStrategy<Box<B>>,
+{
     fn eq(&self, other: &Self) -> bool {
         use crate::ArcUnionBorrow::*;
         match (self.borrow(), other.borrow()) {
@@ -41,12 +53,17 @@ pub enum ArcUnionBorrow<'a, A: 'a, B: 'a> {
     Second(ArcBorrow<'a, B>),
 }
 
-impl<A, B> ArcUnion<A, B> {
+impl<A, B, S> ArcUnion<A, B, S>
+where
+    S: BackdropStrategy<Box<A>>,
+    S: BackdropStrategy<Box<B>>,
+{
     unsafe fn new(ptr: *mut ()) -> Self {
         ArcUnion {
             p: ptr::NonNull::new_unchecked(ptr),
             phantom_a: PhantomData,
             phantom_b: PhantomData,
+            phantom_strategy: PhantomData,
         }
     }
 
@@ -71,13 +88,13 @@ impl<A, B> ArcUnion<A, B> {
 
     /// Creates an `ArcUnion` from an instance of the first type.
     #[inline]
-    pub fn from_first(other: Arc<A>) -> Self {
+    pub fn from_first(other: Arc<A, S>) -> Self {
         unsafe { Self::new(Arc::into_raw(other) as *mut _) }
     }
 
     /// Creates an `ArcUnion` from an instance of the second type.
     #[inline]
-    pub fn from_second(other: Arc<B>) -> Self {
+    pub fn from_second(other: Arc<B, S>) -> Self {
         unsafe { Self::new(((Arc::into_raw(other) as usize) | 0x1) as *mut _) }
     }
 
@@ -110,7 +127,11 @@ impl<A, B> ArcUnion<A, B> {
     }
 }
 
-impl<A, B> Clone for ArcUnion<A, B> {
+impl<A, B, S> Clone for ArcUnion<A, B, S>
+where
+    S: BackdropStrategy<Box<A>>,
+    S: BackdropStrategy<Box<B>>,
+{
     fn clone(&self) -> Self {
         match self.borrow() {
             ArcUnionBorrow::First(x) => ArcUnion::from_first(x.clone_arc()),
@@ -119,7 +140,11 @@ impl<A, B> Clone for ArcUnion<A, B> {
     }
 }
 
-impl<A, B> Drop for ArcUnion<A, B> {
+impl<A, B, S> Drop for ArcUnion<A, B, S>
+where
+    S: BackdropStrategy<Box<A>>,
+    S: BackdropStrategy<Box<B>>,
+{
     fn drop(&mut self) {
         match self.borrow() {
             ArcUnionBorrow::First(x) => unsafe {
@@ -132,7 +157,11 @@ impl<A, B> Drop for ArcUnion<A, B> {
     }
 }
 
-impl<A: fmt::Debug, B: fmt::Debug> fmt::Debug for ArcUnion<A, B> {
+impl<A: fmt::Debug, B: fmt::Debug, S> fmt::Debug for ArcUnion<A, B, S>
+where
+    S: BackdropStrategy<Box<A>>,
+    S: BackdropStrategy<Box<B>>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.borrow(), f)
     }

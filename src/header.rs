@@ -38,7 +38,7 @@ where
 
         let num_items = items.len();
 
-        let inner = Arc::allocate_for_header_and_slice(num_items);
+        let inner = Arc::<_, S>::allocate_for_header_and_slice(num_items);
 
         unsafe {
             // Write the data.
@@ -86,7 +86,7 @@ where
 
         let num_items = items.len();
 
-        let inner = Arc::allocate_for_header_and_slice(num_items);
+        let inner = Arc::<_, S>::allocate_for_header_and_slice(num_items);
 
         unsafe {
             // Write the data.
@@ -108,7 +108,7 @@ where
     pub fn from_header_and_vec(header: H, mut v: Vec<T>) -> Self {
         let len = v.len();
 
-        let inner = Arc::allocate_for_header_and_slice(len);
+        let inner = Arc::<_, S>::allocate_for_header_and_slice(len);
 
         unsafe {
             // Safety: inner is a valid pointer, so this can't go out of bounds
@@ -152,7 +152,7 @@ where
     /// Creates an Arc for a HeaderSlice using the given header struct and
     /// a str slice to generate the slice. The resulting Arc will be fat.
     pub fn from_header_and_str(header: H, string: &str) -> Self {
-        let bytes = Arc::from_header_and_slice(header, string.as_bytes());
+        let bytes: Arc<HeaderSlice<H, [u8]>, backdrop::TrivialStrategy> = Arc::from_header_and_slice(header, string.as_bytes());
 
         // Safety: `ArcInner` and `HeaderSlice` are `repr(C)`, `str` has the same layout as `[u8]`,
         //         thus it's ok to "transmute" between `Arc<HeaderSlice<H, [u8]>>` and `Arc<HeaderSlice<H, str>>`.

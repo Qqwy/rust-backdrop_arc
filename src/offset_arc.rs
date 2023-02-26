@@ -4,6 +4,9 @@ use core::mem::ManuallyDrop;
 use core::ops::Deref;
 use core::ptr;
 
+extern crate backdrop;
+use self::backdrop::BackdropStrategy;
+
 use super::{Arc, ArcBorrow};
 
 /// An `Arc`, except it holds a pointer to the T instead of to the
@@ -35,10 +38,19 @@ pub struct OffsetArc<T, S> {
     pub(crate) phantom: PhantomData<T>,
 }
 
-unsafe impl<T: Sync + Send> Send for OffsetArc<T, S> {}
-unsafe impl<T: Sync + Send> Sync for OffsetArc<T, S> {}
+unsafe impl<T: Sync + Send, S> Send for OffsetArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{}
+unsafe impl<T: Sync + Send, S> Sync for OffsetArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{}
 
-impl<T> Deref for OffsetArc<T, S> {
+impl<T, S> Deref for OffsetArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     type Target = T;
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -46,14 +58,20 @@ impl<T> Deref for OffsetArc<T, S> {
     }
 }
 
-impl<T> Clone for OffsetArc<T, S> {
+impl<T, S> Clone for OffsetArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     #[inline]
     fn clone(&self) -> Self {
         Arc::into_raw_offset(self.clone_arc())
     }
 }
 
-impl<T> Drop for OffsetArc<T, S> {
+impl<T, S> Drop for OffsetArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn drop(&mut self) {
         let _ = Arc::from_raw_offset(OffsetArc {
             ptr: self.ptr,
@@ -62,13 +80,19 @@ impl<T> Drop for OffsetArc<T, S> {
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for OffsetArc<T, S> {
+impl<T: fmt::Debug, S> fmt::Debug for OffsetArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<T: PartialEq> PartialEq for OffsetArc<T, S> {
+impl<T: PartialEq, S> PartialEq for OffsetArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn eq(&self, other: &OffsetArc<T, S>) -> bool {
         *(*self) == *(*other)
     }
@@ -79,7 +103,10 @@ impl<T: PartialEq> PartialEq for OffsetArc<T, S> {
     }
 }
 
-impl<T> OffsetArc<T, S> {
+impl<T, S> OffsetArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     /// Temporarily converts |self| into a bonafide Arc and exposes it to the
     /// provided callback. The refcount is not modified.
     #[inline]

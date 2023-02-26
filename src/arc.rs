@@ -285,7 +285,7 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Arc<T, S> {
 
         // Safety: we propagate safety requirements to the caller
         unsafe {
-            Arc::try_allocate_for_layout(value_layout, mem_to_arcinner)
+            Arc::<_, S>::try_allocate_for_layout(value_layout, mem_to_arcinner)
                 .unwrap_or_else(|_| handle_alloc_error(layout))
         }
     }
@@ -345,7 +345,7 @@ impl<H, T, S: BackdropStrategy<Box<HeaderSlice<H, [T]>>>> Arc<HeaderSlice<H, [T]
             // Safety:
             // - the provided closure does not change the pointer (except for meta & type)
             // - the provided layout is valid for `HeaderSlice<H, [T]>`
-            Arc::allocate_for_layout(layout, |mem| {
+            Arc::<_, S>::allocate_for_layout(layout, |mem| {
                 // Synthesize the fat pointer. We do this by claiming we have a direct
                 // pointer to a [T], and then changing the type of the borrow. The key
                 // point here is that the length portion of the fat pointer applies
