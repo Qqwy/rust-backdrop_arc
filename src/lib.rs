@@ -34,6 +34,8 @@ extern crate stable_deref_trait;
 #[cfg(feature = "unsize")]
 extern crate unsize;
 
+extern crate backdrop;
+
 /// Calculates the offset of the specified field from the start of the named struct.
 /// This macro is impossible to be const until feature(const_ptr_offset_from) is stable.
 macro_rules! offset_of {
@@ -76,6 +78,7 @@ pub use header::*;
 pub use offset_arc::*;
 // pub use thin_arc::*;
 pub use unique_arc::*;
+pub use backdrop::*;
 
 #[cfg(feature = "std")]
 use std::process::abort;

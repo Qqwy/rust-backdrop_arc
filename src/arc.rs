@@ -150,12 +150,12 @@ impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     /// # Examples
     ///
     /// ```
-    /// use triomphe::Arc;
+    /// use triomphe::{Arc, TrivialStrategy};
     ///
-    /// let x = Arc::new(3);
+    /// let x: Arc<usize, TrivialStrategy> = Arc::new(3);
     /// assert_eq!(Arc::try_unwrap(x), Ok(3));
     ///
-    /// let x = Arc::new(4);
+    /// let x: Arc<usize, TrivialStrategy> = Arc::new(4);
     /// let _y = Arc::clone(&x);
     /// assert_eq!(*Arc::try_unwrap(x).unwrap_err(), 4);
     /// ```
@@ -596,12 +596,12 @@ where
     /// # Examples
     ///
     /// ```
-    /// use triomphe::{Arc, UniqueArc};
+    /// use triomphe::{Arc, UniqueArc, TrivialStrategy};
     ///
-    /// let x = Arc::new(3);
+    /// let x: Arc<usize, TrivialStrategy> = Arc::new(3);
     /// assert_eq!(UniqueArc::into_inner(Arc::try_unique(x).unwrap()), 3);
     ///
-    /// let x = Arc::new(4);
+    /// let x: Arc<usize, TrivialStrategy> = Arc::new(4);
     /// let _y = Arc::clone(&x);
     /// assert_eq!(
     ///     *Arc::try_unique(x).map(UniqueArc::into_inner).unwrap_err(),

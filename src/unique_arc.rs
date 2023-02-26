@@ -33,9 +33,9 @@ use super::{Arc, ArcInner};
 /// out of it.
 ///
 /// ```rust
-/// # use triomphe::UniqueArc;
+/// # use triomphe::{UniqueArc, TrivialStrategy};
 /// let data = [1, 2, 3, 4, 5];
-/// let mut x = UniqueArc::new(data);
+/// let mut x: UniqueArc<_, TrivialStrategy> = UniqueArc::new(data);
 /// x[4] = 7; // mutate!
 /// let y = x.shareable(); // y is an Arc<T, S>
 /// ```
