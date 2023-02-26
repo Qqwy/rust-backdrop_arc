@@ -34,10 +34,13 @@ impl<'a, T> Clone for ArcBorrow<'a, T> {
     }
 }
 
-impl<'a, T, S: BackdropStrategy<T>> ArcBorrow<'a, T> {
+impl<'a, T> ArcBorrow<'a, T> {
     /// Clone this as an `Arc<T, S>`. This bumps the refcount.
     #[inline]
-    pub fn clone_arc(&self) -> Arc<T, S> {
+    pub fn clone_arc<S>(&self) -> Arc<T, S>
+        where
+        S: BackdropStrategy<Box<T>>,
+    {
         let arc = unsafe { Arc::from_raw(self.0) };
         // addref it!
         mem::forget(arc.clone());
@@ -63,10 +66,11 @@ impl<'a, T, S: BackdropStrategy<T>> ArcBorrow<'a, T> {
     /// Temporarily converts |self| into a bonafide Arc and exposes it to the
     /// provided callback. The refcount is not modified.
     #[inline]
-    pub fn with_arc<F, U>(&self, f: F) -> U
+    pub fn with_arc<F, U, S>(&self, f: F) -> U
     where
         F: FnOnce(&Arc<T, S>) -> U,
         T: 'static,
+        S: BackdropStrategy<Box<T>>,
     {
         // Synthesize transient Arc, which never touches the refcount.
         let transient = unsafe { ManuallyDrop::new(Arc::from_raw(self.0)) };

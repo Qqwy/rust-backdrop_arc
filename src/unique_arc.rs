@@ -9,7 +9,7 @@ use core::ptr::{self, NonNull};
 use core::sync::atomic::AtomicUsize;
 
 extern crate backdrop;
-use self::backdrop::BackdropStrategy;
+use self::backdrop::{BackdropStrategy, TrivialStrategy};
 
 use crate::iterator_as_exact_size_iterator::IteratorAsExactSizeIterator;
 use crate::HeaderSlice;
@@ -40,32 +40,13 @@ use super::{Arc, ArcInner};
 /// let y = x.shareable(); // y is an Arc<T, S>
 /// ```
 #[repr(transparent)]
-pub struct UniqueArc<T: ?Sized, S: BackdropStrategy<T>>(Arc<T, S>);
+pub struct UniqueArc<T: ?Sized, S: BackdropStrategy<Box<T>>>(Arc<T, S>);
 
-impl<T, S: BackdropStrategy<T>> UniqueArc<T, S> {
+impl<T, S: BackdropStrategy<Box<T>>> UniqueArc<T, S> {
     #[inline]
     /// Construct a new UniqueArc
     pub fn new(data: T) -> Self {
         UniqueArc(Arc::new(data))
-    }
-
-    /// Construct an uninitialized arc
-    #[inline]
-    pub fn new_uninit() -> UniqueArc<MaybeUninit<T>, S> {
-        unsafe {
-            let layout = Layout::new::<ArcInner<MaybeUninit<T>>>();
-            let ptr = alloc::alloc::alloc(layout);
-            let mut p = NonNull::new(ptr)
-                .unwrap_or_else(|| alloc::alloc::handle_alloc_error(layout))
-                .cast::<ArcInner<MaybeUninit<T>>>();
-            ptr::write(&mut p.as_mut().count, AtomicUsize::new(1));
-
-            UniqueArc(Arc {
-                p,
-                phantom: PhantomData,
-                phantom_strategy: PhantomData,
-            })
-        }
     }
 
     /// Gets the inner value of the unique arc
@@ -84,7 +65,31 @@ impl<T, S: BackdropStrategy<T>> UniqueArc<T, S> {
     }
 }
 
-impl<T: ?Sized, S> UniqueArc<T, S> {
+impl<T, S: BackdropStrategy<Box<MaybeUninit<T>>>> UniqueArc<MaybeUninit<T>, S> {
+    /// Construct an uninitialized arc
+    #[inline]
+    pub fn new_uninit() -> UniqueArc<MaybeUninit<T>, S> {
+        unsafe {
+            let layout = Layout::new::<ArcInner<MaybeUninit<T>>>();
+            let ptr = alloc::alloc::alloc(layout);
+            let mut p = NonNull::new(ptr)
+                .unwrap_or_else(|| alloc::alloc::handle_alloc_error(layout))
+                .cast::<ArcInner<MaybeUninit<T>>>();
+            ptr::write(&mut p.as_mut().count, AtomicUsize::new(1));
+
+            UniqueArc(Arc {
+                p,
+                phantom: PhantomData,
+                phantom_strategy: PhantomData,
+            })
+        }
+    }
+}
+
+impl<T: ?Sized, S> UniqueArc<T, S>
+    where
+    S: BackdropStrategy<Box<T>>,
+{
     /// Convert to a shareable Arc<T, S> once we're done mutating it
     #[inline]
     pub fn shareable(self) -> Arc<T, S> {
@@ -120,7 +125,11 @@ impl<T: ?Sized, S> UniqueArc<T, S> {
     }
 }
 
-impl<T, S: BackdropStrategy<T>> UniqueArc<MaybeUninit<T>, S> {
+impl<T, S> UniqueArc<MaybeUninit<T>, S>
+where
+    S: BackdropStrategy<Box<MaybeUninit<T>>>,
+    S: BackdropStrategy<Box<T>>,
+{
     /// Calls `MaybeUninit::write` on the contained value.
     pub fn write(&mut self, val: T) -> &mut T {
         unsafe {
@@ -157,19 +166,24 @@ impl<T, S: BackdropStrategy<T>> UniqueArc<MaybeUninit<T>, S> {
     }
 }
 
-impl<T, S: BackdropStrategy<[MaybeUninit<T>]>> UniqueArc<[MaybeUninit<T>], S> {
+impl<T, S> UniqueArc<[MaybeUninit<T>], S>
+where
+    S: BackdropStrategy<Box<HeaderSlice<(), [MaybeUninit<T>]>>>,
+    S: BackdropStrategy<Box<[MaybeUninit<T>]>>,
+    S: BackdropStrategy<Box<[T]>>,
+{
     /// Create an Arc contains an array `[MaybeUninit<T>]` of `len`.
     pub fn new_uninit_slice(len: usize) -> Self {
         let ptr: NonNull<ArcInner<HeaderSlice<(), [MaybeUninit<T>]>>> =
-            Arc::allocate_for_header_and_slice(len);
+            Arc::<_, S>::allocate_for_header_and_slice(len);
 
         // Safety:
         // - `ArcInner` is properly allocated and initialized.
         //   - `()` and `[MaybeUninit<T>]` do not require special initialization
         // - The `Arc` is just created and so -- unique.
         unsafe {
-            let arc: Arc<HeaderSlice<(), [MaybeUninit<T>]>> = Arc::from_raw_inner(ptr.as_ptr());
-            let arc: Arc<[MaybeUninit<T>]> = arc.into();
+            let arc: Arc<HeaderSlice<(), [MaybeUninit<T>]>, S> = Arc::from_raw_inner(ptr.as_ptr());
+            let arc: Arc<[MaybeUninit<T>], S> = arc.into();
             UniqueArc(arc)
         }
     }
@@ -183,7 +197,7 @@ impl<T, S: BackdropStrategy<[MaybeUninit<T>]>> UniqueArc<[MaybeUninit<T>], S> {
     }
 }
 
-impl<T: ?Sized, S: BackdropStrategy<T>> TryFrom<Arc<T, S>> for UniqueArc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<Box<T>>> TryFrom<Arc<T, S>> for UniqueArc<T, S> {
     type Error = Arc<T, S>;
 
     fn try_from(arc: Arc<T, S>) -> Result<Self, Self::Error> {
@@ -191,7 +205,7 @@ impl<T: ?Sized, S: BackdropStrategy<T>> TryFrom<Arc<T, S>> for UniqueArc<T, S> {
     }
 }
 
-impl<T: ?Sized, S: BackdropStrategy<T>> Deref for UniqueArc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Deref for UniqueArc<T, S> {
     type Target = T;
 
     #[inline]
@@ -200,7 +214,7 @@ impl<T: ?Sized, S: BackdropStrategy<T>> Deref for UniqueArc<T, S> {
     }
 }
 
-impl<T: ?Sized, S: BackdropStrategy<T>> DerefMut for UniqueArc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<Box<T>>> DerefMut for UniqueArc<T, S> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
         // We know this to be uniquely owned
@@ -208,11 +222,15 @@ impl<T: ?Sized, S: BackdropStrategy<T>> DerefMut for UniqueArc<T, S> {
     }
 }
 
-impl<A, S: BackdropStrategy<[A]>> FromIterator<A> for UniqueArc<[A], S> {
+impl<A, S> FromIterator<A> for UniqueArc<[A], S>
+    where
+    S: BackdropStrategy<Box<HeaderSlice<(), [A]>>>,
+    S: BackdropStrategy<Box<[A]>>,
+{
     fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
         let iter = iter.into_iter();
         let (lower, upper) = iter.size_hint();
-        let arc: Arc<[A]> = if Some(lower) == upper {
+        let arc: Arc<[A], S> = if Some(lower) == upper {
             let iter = IteratorAsExactSizeIterator::new(iter);
             Arc::from_header_and_iter((), iter).into()
         } else {

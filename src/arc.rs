@@ -121,6 +121,7 @@ impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
             OffsetArc {
                 ptr: ptr::NonNull::new_unchecked(Arc::into_raw(a) as *mut T),
                 phantom: PhantomData,
+                phantom_strategy: PhantomData,
             }
         }
     }
@@ -399,6 +400,7 @@ impl<T, S> Arc<MaybeUninit<T>, S>
 
 impl<T, S> Arc<[MaybeUninit<T>], S>
 where
+    S: BackdropStrategy<Box<HeaderSlice<(), [MaybeUninit<T>]>>>,
     S: BackdropStrategy<Box<[MaybeUninit<T>]>>,
     S: BackdropStrategy<Box<[T]>>,
 {
@@ -769,6 +771,7 @@ impl<T, S: BackdropStrategy<Box<T>>> From<T> for Arc<T, S> {
 impl<A, S: BackdropStrategy<Box<[A]>>> FromIterator<A> for Arc<[A], S>
 where
     S: BackdropStrategy<Box<[A]>>,
+    S: BackdropStrategy<Box<HeaderSlice<(), [A]>>>,
 {
     fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
         UniqueArc::from_iter(iter).shareable()

@@ -17,14 +17,22 @@ use super::{Arc, ArcBorrow};
 /// up a single word of stack space.
 ///
 /// This could probably be extended to support four types if necessary.
-pub struct ArcUnion<A, B, S> {
+pub struct ArcUnion<A, B, S>
+where
+    S: BackdropStrategy<Box<A>>,
+    S: BackdropStrategy<Box<B>>,
+{
     p: ptr::NonNull<()>,
     phantom_a: PhantomData<A>,
     phantom_b: PhantomData<B>,
     phantom_strategy: PhantomData<S>,
 }
 
-unsafe impl<A: Sync + Send, B: Send + Sync, S> Send for ArcUnion<A, B, S> {}
+unsafe impl<A: Sync + Send, B: Send + Sync, S> Send for ArcUnion<A, B, S>
+where
+    S: BackdropStrategy<Box<A>>,
+    S: BackdropStrategy<Box<B>>,
+{}
 unsafe impl<A: Sync + Send, B: Send + Sync, S> Sync for ArcUnion<A, B, S>
     where
     S: BackdropStrategy<Box<A>>,
@@ -148,10 +156,10 @@ where
     fn drop(&mut self) {
         match self.borrow() {
             ArcUnionBorrow::First(x) => unsafe {
-                let _ = Arc::from_raw(&*x);
+                let _ = Arc::<_, S>::from_raw(&*x);
             },
             ArcUnionBorrow::Second(x) => unsafe {
-                let _ = Arc::from_raw(&*x);
+                let _ = Arc::<_, S>::from_raw(&*x);
             },
         }
     }

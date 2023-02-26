@@ -33,9 +33,13 @@ use super::{Arc, ArcBorrow};
 /// an FFI call overhead.
 #[derive(Eq)]
 #[repr(transparent)]
-pub struct OffsetArc<T, S> {
+pub struct OffsetArc<T, S>
+    where
+         S: BackdropStrategy<Box<T>>,
+{
     pub(crate) ptr: ptr::NonNull<T>,
     pub(crate) phantom: PhantomData<T>,
+    pub(crate) phantom_strategy: PhantomData<S>,
 }
 
 unsafe impl<T: Sync + Send, S> Send for OffsetArc<T, S>
@@ -73,9 +77,10 @@ where
     S: BackdropStrategy<Box<T>>,
 {
     fn drop(&mut self) {
-        let _ = Arc::from_raw_offset(OffsetArc {
+        let _ = Arc::<_, S>::from_raw_offset(OffsetArc {
             ptr: self.ptr,
             phantom: PhantomData,
+            phantom_strategy: PhantomData,
         });
     }
 }
