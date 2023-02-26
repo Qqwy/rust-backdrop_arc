@@ -22,7 +22,7 @@ pub struct HeaderSlice<H, T: ?Sized> {
     pub slice: T,
 }
 
-impl<H, T> Arc<HeaderSlice<H, [T]>> {
+impl<H, T, S> Arc<HeaderSlice<H, [T]>, S> {
     /// Creates an Arc for a HeaderSlice using the given header struct and
     /// iterator to generate the slice. The resulting Arc will be fat.
     pub fn from_header_and_iter<I>(header: H, mut items: I) -> Self
@@ -67,6 +67,7 @@ impl<H, T> Arc<HeaderSlice<H, [T]>> {
         Arc {
             p: inner,
             phantom: PhantomData,
+            phantom_strategy: PhantomData,
         }
     }
 
@@ -93,6 +94,7 @@ impl<H, T> Arc<HeaderSlice<H, [T]>> {
         Arc {
             p: inner,
             phantom: PhantomData,
+            phantom_strategy: PhantomData,
         }
     }
 
@@ -133,11 +135,12 @@ impl<H, T> Arc<HeaderSlice<H, [T]>> {
         Arc {
             p: inner,
             phantom: PhantomData,
+            phantom_strategy: PhantomData,
         }
     }
 }
 
-impl<H> Arc<HeaderSlice<H, str>> {
+impl<H, S> Arc<HeaderSlice<H, str>, S> {
     /// Creates an Arc for a HeaderSlice using the given header struct and
     /// a str slice to generate the slice. The resulting Arc will be fat.
     pub fn from_header_and_str(header: H, string: &str) -> Self {
@@ -171,8 +174,8 @@ impl<H> HeaderWithLength<H> {
     }
 }
 
-impl<T: ?Sized> From<Arc<HeaderSlice<(), T>>> for Arc<T, S> {
-    fn from(this: Arc<HeaderSlice<(), T>>) -> Self {
+impl<T: ?Sized, S> From<Arc<HeaderSlice<(), T>, S>> for Arc<T, S> {
+    fn from(this: Arc<HeaderSlice<(), T>, S>) -> Self {
         debug_assert_eq!(
             Layout::for_value::<HeaderSlice<(), T>>(&this),
             Layout::for_value::<T>(&this.slice)
@@ -183,26 +186,26 @@ impl<T: ?Sized> From<Arc<HeaderSlice<(), T>>> for Arc<T, S> {
     }
 }
 
-impl<T: ?Sized> From<Arc<T, S>> for Arc<HeaderSlice<(), T>> {
+impl<T: ?Sized, S> From<Arc<T, S>> for Arc<HeaderSlice<(), T>, S> {
     fn from(this: Arc<T, S>) -> Self {
         // Safety: `T` and `HeaderSlice<(), T>` has the same layout
         unsafe { Arc::from_raw_inner(Arc::into_raw_inner(this) as _) }
     }
 }
 
-impl<T: Copy> From<&[T]> for Arc<[T]> {
+impl<T: Copy, S> From<&[T]> for Arc<[T], S> {
     fn from(slice: &[T]) -> Self {
         Arc::from_header_and_slice((), slice).into()
     }
 }
 
-impl From<&str> for Arc<str> {
+impl<S> From<&str> for Arc<str, S> {
     fn from(s: &str) -> Self {
         Arc::from_header_and_str((), s).into()
     }
 }
 
-impl From<String> for Arc<str> {
+impl<S> From<String> for Arc<str, S> {
     fn from(s: String) -> Self {
         Self::from(&s[..])
     }
@@ -211,7 +214,7 @@ impl From<String> for Arc<str> {
 // FIXME: once `pointer::with_metadata_of` is stable or
 //        implementable on stable without assuming ptr layout
 //        this will be able to accept `T: ?Sized`.
-impl<T> From<Box<T>> for Arc<T, S> {
+impl<T, S> From<Box<T>> for Arc<T, S> {
     fn from(b: Box<T>) -> Self {
         let layout = Layout::for_value::<T>(&b);
 
@@ -241,11 +244,12 @@ impl<T> From<Box<T>> for Arc<T, S> {
         Arc {
             p: inner,
             phantom: PhantomData,
+            phantom_strategy: PhantomData,
         }
     }
 }
 
-impl<T> From<Vec<T>> for Arc<[T]> {
+impl<T, S> From<Vec<T>> for Arc<[T], S> {
     fn from(v: Vec<T>) -> Self {
         Arc::from_header_and_vec((), v).into()
     }
