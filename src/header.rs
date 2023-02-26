@@ -171,7 +171,7 @@ impl<H> HeaderWithLength<H> {
     }
 }
 
-impl<T: ?Sized> From<Arc<HeaderSlice<(), T>>> for Arc<T> {
+impl<T: ?Sized> From<Arc<HeaderSlice<(), T>>> for Arc<T, S> {
     fn from(this: Arc<HeaderSlice<(), T>>) -> Self {
         debug_assert_eq!(
             Layout::for_value::<HeaderSlice<(), T>>(&this),
@@ -183,8 +183,8 @@ impl<T: ?Sized> From<Arc<HeaderSlice<(), T>>> for Arc<T> {
     }
 }
 
-impl<T: ?Sized> From<Arc<T>> for Arc<HeaderSlice<(), T>> {
-    fn from(this: Arc<T>) -> Self {
+impl<T: ?Sized> From<Arc<T, S>> for Arc<HeaderSlice<(), T>> {
+    fn from(this: Arc<T, S>) -> Self {
         // Safety: `T` and `HeaderSlice<(), T>` has the same layout
         unsafe { Arc::from_raw_inner(Arc::into_raw_inner(this) as _) }
     }
@@ -211,7 +211,7 @@ impl From<String> for Arc<str> {
 // FIXME: once `pointer::with_metadata_of` is stable or
 //        implementable on stable without assuming ptr layout
 //        this will be able to accept `T: ?Sized`.
-impl<T> From<Box<T>> for Arc<T> {
+impl<T> From<Box<T>> for Arc<T, S> {
     fn from(b: Box<T>) -> Self {
         let layout = Layout::for_value::<T>(&b);
 

@@ -9,9 +9,9 @@ use super::Arc;
 /// a T that is known to have been allocated within an
 /// `Arc`.
 ///
-/// This is equivalent in guarantees to `&Arc<T>`, however it is
-/// a bit more flexible. To obtain an `&Arc<T>` you must have
-/// an `Arc<T>` instance somewhere pinned down until we're done with it.
+/// This is equivalent in guarantees to `&Arc<T, S>`, however it is
+/// a bit more flexible. To obtain an `&Arc<T, S>` you must have
+/// an `Arc<T, S>` instance somewhere pinned down until we're done with it.
 /// It's also a direct pointer to `T`, so using this involves less pointer-chasing
 ///
 /// However, C++ code may hand us refcounted things as pointers to T directly,
@@ -19,7 +19,7 @@ use super::Arc;
 /// same happens for when the object is managed by a `OffsetArc`.
 ///
 /// `ArcBorrow` lets us deal with borrows of known-refcounted objects
-/// without needing to worry about where the `Arc<T>` is.
+/// without needing to worry about where the `Arc<T, S>` is.
 #[derive(Debug, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct ArcBorrow<'a, T: ?Sized + 'a>(pub(crate) &'a T);
@@ -33,9 +33,9 @@ impl<'a, T> Clone for ArcBorrow<'a, T> {
 }
 
 impl<'a, T> ArcBorrow<'a, T> {
-    /// Clone this as an `Arc<T>`. This bumps the refcount.
+    /// Clone this as an `Arc<T, S>`. This bumps the refcount.
     #[inline]
-    pub fn clone_arc(&self) -> Arc<T> {
+    pub fn clone_arc(&self) -> Arc<T, S> {
         let arc = unsafe { Arc::from_raw(self.0) };
         // addref it!
         mem::forget(arc.clone());
@@ -63,7 +63,7 @@ impl<'a, T> ArcBorrow<'a, T> {
     #[inline]
     pub fn with_arc<F, U>(&self, f: F) -> U
     where
-        F: FnOnce(&Arc<T>) -> U,
+        F: FnOnce(&Arc<T, S>) -> U,
         T: 'static,
     {
         // Synthesize transient Arc, which never touches the refcount.

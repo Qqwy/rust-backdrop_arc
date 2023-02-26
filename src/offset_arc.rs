@@ -9,11 +9,11 @@ use super::{Arc, ArcBorrow};
 /// An `Arc`, except it holds a pointer to the T instead of to the
 /// entire ArcInner.
 ///
-/// An `OffsetArc<T>` has the same layout and ABI as a non-null
+/// An `OffsetArc<T, S>` has the same layout and ABI as a non-null
 /// `const T*` in C, and may be used in FFI function signatures.
 ///
 /// ```text
-///  Arc<T>    OffsetArc<T>
+///  Arc<T, S>    OffsetArc<T, S>
 ///   |          |
 ///   v          v
 ///  ---------------------
@@ -23,22 +23,22 @@ use super::{Arc, ArcBorrow};
 ///
 /// This means that this is a direct pointer to
 /// its contained data (and can be read from by both C++ and Rust),
-/// but we can also convert it to a "regular" `Arc<T>` by removing the offset.
+/// but we can also convert it to a "regular" `Arc<T, S>` by removing the offset.
 ///
 /// This is very useful if you have an Arc-containing struct shared between Rust and C++,
 /// and wish for C++ to be able to read the data behind the `Arc` without incurring
 /// an FFI call overhead.
 #[derive(Eq)]
 #[repr(transparent)]
-pub struct OffsetArc<T> {
+pub struct OffsetArc<T, S> {
     pub(crate) ptr: ptr::NonNull<T>,
     pub(crate) phantom: PhantomData<T>,
 }
 
-unsafe impl<T: Sync + Send> Send for OffsetArc<T> {}
-unsafe impl<T: Sync + Send> Sync for OffsetArc<T> {}
+unsafe impl<T: Sync + Send> Send for OffsetArc<T, S> {}
+unsafe impl<T: Sync + Send> Sync for OffsetArc<T, S> {}
 
-impl<T> Deref for OffsetArc<T> {
+impl<T> Deref for OffsetArc<T, S> {
     type Target = T;
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -46,14 +46,14 @@ impl<T> Deref for OffsetArc<T> {
     }
 }
 
-impl<T> Clone for OffsetArc<T> {
+impl<T> Clone for OffsetArc<T, S> {
     #[inline]
     fn clone(&self) -> Self {
         Arc::into_raw_offset(self.clone_arc())
     }
 }
 
-impl<T> Drop for OffsetArc<T> {
+impl<T> Drop for OffsetArc<T, S> {
     fn drop(&mut self) {
         let _ = Arc::from_raw_offset(OffsetArc {
             ptr: self.ptr,
@@ -62,30 +62,30 @@ impl<T> Drop for OffsetArc<T> {
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for OffsetArc<T> {
+impl<T: fmt::Debug> fmt::Debug for OffsetArc<T, S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<T: PartialEq> PartialEq for OffsetArc<T> {
-    fn eq(&self, other: &OffsetArc<T>) -> bool {
+impl<T: PartialEq> PartialEq for OffsetArc<T, S> {
+    fn eq(&self, other: &OffsetArc<T, S>) -> bool {
         *(*self) == *(*other)
     }
 
     #[allow(clippy::partialeq_ne_impl)]
-    fn ne(&self, other: &OffsetArc<T>) -> bool {
+    fn ne(&self, other: &OffsetArc<T, S>) -> bool {
         *(*self) != *(*other)
     }
 }
 
-impl<T> OffsetArc<T> {
+impl<T> OffsetArc<T, S> {
     /// Temporarily converts |self| into a bonafide Arc and exposes it to the
     /// provided callback. The refcount is not modified.
     #[inline]
     pub fn with_arc<F, U>(&self, f: F) -> U
     where
-        F: FnOnce(&Arc<T>) -> U,
+        F: FnOnce(&Arc<T, S>) -> U,
     {
         // Synthesize transient Arc, which never touches the refcount of the ArcInner.
         let transient = unsafe { ManuallyDrop::new(Arc::from_raw(self.ptr.as_ptr())) };
@@ -121,7 +121,7 @@ impl<T> OffsetArc<T> {
 
     /// Clone it as an `Arc`
     #[inline]
-    pub fn clone_arc(&self) -> Arc<T> {
+    pub fn clone_arc(&self) -> Arc<T, S> {
         OffsetArc::with_arc(self, |a| a.clone())
     }
 

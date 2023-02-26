@@ -8,6 +8,9 @@ use core::ops::{Deref, DerefMut};
 use core::ptr::{self, NonNull};
 use core::sync::atomic::AtomicUsize;
 
+extern crate backdrop;
+use self::backdrop::BackdropStrategy;
+
 use crate::iterator_as_exact_size_iterator::IteratorAsExactSizeIterator;
 use crate::HeaderSlice;
 
@@ -34,12 +37,12 @@ use super::{Arc, ArcInner};
 /// let data = [1, 2, 3, 4, 5];
 /// let mut x = UniqueArc::new(data);
 /// x[4] = 7; // mutate!
-/// let y = x.shareable(); // y is an Arc<T>
+/// let y = x.shareable(); // y is an Arc<T, S>
 /// ```
 #[repr(transparent)]
-pub struct UniqueArc<T: ?Sized>(Arc<T>);
+pub struct UniqueArc<T: ?Sized, S: BackdropStrategy<T>>(Arc<T, S>);
 
-impl<T> UniqueArc<T> {
+impl<T, S> UniqueArc<T, S> {
     #[inline]
     /// Construct a new UniqueArc
     pub fn new(data: T) -> Self {
@@ -48,7 +51,7 @@ impl<T> UniqueArc<T> {
 
     /// Construct an uninitialized arc
     #[inline]
-    pub fn new_uninit() -> UniqueArc<MaybeUninit<T>> {
+    pub fn new_uninit() -> UniqueArc<MaybeUninit<T>, S> {
         unsafe {
             let layout = Layout::new::<ArcInner<MaybeUninit<T>>>();
             let ptr = alloc::alloc::alloc(layout);
@@ -60,6 +63,7 @@ impl<T> UniqueArc<T> {
             UniqueArc(Arc {
                 p,
                 phantom: PhantomData,
+                phantom_strategy: PhantomData,
             })
         }
     }
@@ -80,10 +84,10 @@ impl<T> UniqueArc<T> {
     }
 }
 
-impl<T: ?Sized> UniqueArc<T> {
-    /// Convert to a shareable Arc<T> once we're done mutating it
+impl<T: ?Sized, S> UniqueArc<T, S> {
+    /// Convert to a shareable Arc<T, S> once we're done mutating it
     #[inline]
-    pub fn shareable(self) -> Arc<T> {
+    pub fn shareable(self) -> Arc<T, S> {
         self.0
     }
 
@@ -95,7 +99,7 @@ impl<T: ?Sized> UniqueArc<T> {
     ///
     /// The given `Arc` must have a reference count of exactly one
     ///
-    pub(crate) unsafe fn from_arc(arc: Arc<T>) -> Self {
+    pub(crate) unsafe fn from_arc(arc: Arc<T, S>) -> Self {
         debug_assert_eq!(Arc::count(&arc), 1);
         Self(arc)
     }
@@ -107,16 +111,16 @@ impl<T: ?Sized> UniqueArc<T> {
     /// # Safety
     ///
     /// The given `Arc` must have a reference count of exactly one
-    pub(crate) unsafe fn from_arc_ref(arc: &mut Arc<T>) -> &mut Self {
+    pub(crate) unsafe fn from_arc_ref(arc: &mut Arc<T, S>) -> &mut Self {
         debug_assert_eq!(Arc::count(&arc), 1);
 
         // Safety: caller guarantees that `arc` is unique,
         //         `UniqueArc` is `repr(transparent)`
-        &mut *(arc as *mut Arc<T> as *mut UniqueArc<T>)
+        &mut *(arc as *mut Arc<T, S> as *mut UniqueArc<T, S>)
     }
 }
 
-impl<T> UniqueArc<MaybeUninit<T>> {
+impl<T, S> UniqueArc<MaybeUninit<T>, S> {
     /// Calls `MaybeUninit::write` on the contained value.
     pub fn write(&mut self, val: T) -> &mut T {
         unsafe {
@@ -144,15 +148,16 @@ impl<T> UniqueArc<MaybeUninit<T>> {
     /// same safety requirements. You are responsible for ensuring that the `T`
     /// has actually been initialized before calling this method.
     #[inline]
-    pub unsafe fn assume_init(this: Self) -> UniqueArc<T> {
+    pub unsafe fn assume_init(this: Self) -> UniqueArc<T, S> {
         UniqueArc(Arc {
             p: ManuallyDrop::new(this).0.p.cast(),
             phantom: PhantomData,
+            phantom_strategy: PhantomData,
         })
     }
 }
 
-impl<T> UniqueArc<[MaybeUninit<T>]> {
+impl<T, S> UniqueArc<[MaybeUninit<T>], S> {
     /// Create an Arc contains an array `[MaybeUninit<T>]` of `len`.
     pub fn new_uninit_slice(len: usize) -> Self {
         let ptr: NonNull<ArcInner<HeaderSlice<(), [MaybeUninit<T>]>>> =
@@ -173,20 +178,20 @@ impl<T> UniqueArc<[MaybeUninit<T>]> {
     ///
     /// Must initialize all fields before calling this function.
     #[inline]
-    pub unsafe fn assume_init_slice(Self(this): Self) -> UniqueArc<[T]> {
+    pub unsafe fn assume_init_slice(Self(this): Self) -> UniqueArc<[T], S> {
         UniqueArc(this.assume_init())
     }
 }
 
-impl<T: ?Sized> TryFrom<Arc<T>> for UniqueArc<T> {
-    type Error = Arc<T>;
+impl<T: ?Sized, S> TryFrom<Arc<T, S>> for UniqueArc<T, S> {
+    type Error = Arc<T, S>;
 
-    fn try_from(arc: Arc<T>) -> Result<Self, Self::Error> {
+    fn try_from(arc: Arc<T, S>) -> Result<Self, Self::Error> {
         Arc::try_unique(arc)
     }
 }
 
-impl<T: ?Sized> Deref for UniqueArc<T> {
+impl<T: ?Sized, S> Deref for UniqueArc<T, S> {
     type Target = T;
 
     #[inline]
@@ -195,7 +200,7 @@ impl<T: ?Sized> Deref for UniqueArc<T> {
     }
 }
 
-impl<T: ?Sized> DerefMut for UniqueArc<T> {
+impl<T: ?Sized, S> DerefMut for UniqueArc<T, S> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
         // We know this to be uniquely owned
@@ -203,7 +208,7 @@ impl<T: ?Sized> DerefMut for UniqueArc<T> {
     }
 }
 
-impl<A> FromIterator<A> for UniqueArc<[A]> {
+impl<A, S> FromIterator<A> for UniqueArc<[A], S> {
     fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
         let iter = iter.into_iter();
         let (lower, upper) = iter.size_hint();
@@ -225,7 +230,7 @@ impl<A> FromIterator<A> for UniqueArc<[A]> {
 // duplicate the Arc, such that replace_ptr returns a valid instance. This holds since it consumes
 // a unique owner of the contained ArcInner.
 #[cfg(feature = "unsize")]
-unsafe impl<T, U: ?Sized> unsize::CoerciblePtr<U> for UniqueArc<T> {
+unsafe impl<T, U: ?Sized> unsize::CoerciblePtr<U> for UniqueArc<T, S> {
     type Pointee = T;
     type Output = UniqueArc<U>;
 
