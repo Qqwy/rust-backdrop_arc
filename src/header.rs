@@ -212,6 +212,7 @@ where
 impl<T: Copy, S> From<&[T]> for Arc<[T], S>
 where
     S: BackdropStrategy<Box<[T]>>,
+    S: BackdropStrategy<Box<HeaderSlice<(), [T]>>>,
 {
     fn from(slice: &[T]) -> Self {
         Arc::from_header_and_slice((), slice).into()
@@ -221,6 +222,7 @@ where
 impl<S> From<&str> for Arc<str, S>
 where
     S: BackdropStrategy<Box<str>>,
+    S: BackdropStrategy<Box<HeaderSlice<(), str>>>
 {
     fn from(s: &str) -> Self {
         Arc::from_header_and_str((), s).into()
@@ -230,6 +232,7 @@ where
 impl<S> From<String> for Arc<str, S>
 where
     S: BackdropStrategy<Box<str>>,
+    S: BackdropStrategy<Box<HeaderSlice<(), str>>>,
 {
     fn from(s: String) -> Self {
         Self::from(&s[..])
@@ -280,6 +283,7 @@ where
 impl<T, S> From<Vec<T>> for Arc<[T], S>
 where
     S: BackdropStrategy<Box<[T]>>,
+    S: BackdropStrategy<Box<HeaderSlice<(), [T]>>>
 
 {
     fn from(v: Vec<T>) -> Self {
