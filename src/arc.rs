@@ -55,8 +55,14 @@ pub struct Arc<T: ?Sized, S: BackdropStrategy<Box<T>>> {
     pub(crate) phantom_strategy: PhantomData<S>,
 }
 
-unsafe impl<T: ?Sized + Sync + Send, S> Send for Arc<T, S> {}
-unsafe impl<T: ?Sized + Sync + Send, S> Sync for Arc<T, S> {}
+unsafe impl<T: ?Sized + Sync + Send, S> Send for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>
+{}
+unsafe impl<T: ?Sized + Sync + Send, S> Sync for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>
+{}
 
 impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     /// Construct an `Arc<T, S>`
@@ -150,7 +156,7 @@ impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     }
 }
 
-impl<T, S: BackdropStrategy<Box<T>>> Arc<[T], S> {
+impl<T, S: BackdropStrategy<Box<[T]>>> Arc<[T], S> {
     /// Reconstruct the `Arc<[T]>` from a raw pointer obtained from `into_raw()`.
     ///
     /// [`Arc::from_raw`] should accept unsized types, but this is not trivial to do correctly
@@ -325,7 +331,7 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     }
 }
 
-impl<H, T, S: BackdropStrategy<HeaderSlice<H, [T]>>> Arc<HeaderSlice<H, [T]>, S> {
+impl<H, T, S: BackdropStrategy<Box<HeaderSlice<H, [T]>>>> Arc<HeaderSlice<H, [T]>, S> {
     pub(super) fn allocate_for_header_and_slice(
         len: usize,
     ) -> NonNull<ArcInner<HeaderSlice<H, [T]>>> {
@@ -353,7 +359,11 @@ impl<H, T, S: BackdropStrategy<HeaderSlice<H, [T]>>> Arc<HeaderSlice<H, [T]>, S>
     }
 }
 
-impl<T, S: BackdropStrategy<Box<T>>> Arc<MaybeUninit<T>, S> {
+impl<T, S> Arc<MaybeUninit<T>, S>
+    where
+    S: BackdropStrategy<Box<MaybeUninit<T>>>,
+    S: BackdropStrategy<Box<T>>,
+{
     /// Create an Arc contains an `MaybeUninit<T>`.
     pub fn new_uninit() -> Self {
         Arc::new(MaybeUninit::<T>::uninit())
@@ -387,7 +397,11 @@ impl<T, S: BackdropStrategy<Box<T>>> Arc<MaybeUninit<T>, S> {
     }
 }
 
-impl<T, S: BackdropStrategy<Box<T>>> Arc<[MaybeUninit<T>], S> {
+impl<T, S> Arc<[MaybeUninit<T>], S>
+where
+    S: BackdropStrategy<Box<[MaybeUninit<T>]>>,
+    S: BackdropStrategy<Box<[T]>>,
+{
     /// Create an Arc contains an array `[MaybeUninit<T>]` of `len`.
     pub fn new_uninit_slice(len: usize) -> Self {
         UniqueArc::new_uninit_slice(len).shareable()
@@ -412,7 +426,10 @@ impl<T, S: BackdropStrategy<Box<T>>> Arc<[MaybeUninit<T>], S> {
     }
 }
 
-impl<T: ?Sized, S> Clone for Arc<T, S> {
+impl<T: ?Sized, S> Clone for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     #[inline]
     fn clone(&self) -> Self {
         // Using a relaxed ordering is alright here, as knowledge of the
@@ -451,7 +468,10 @@ impl<T: ?Sized, S> Clone for Arc<T, S> {
     }
 }
 
-impl<T: ?Sized, S> Deref for Arc<T, S> {
+impl<T: ?Sized, S> Deref for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     type Target = T;
 
     #[inline]
@@ -460,7 +480,10 @@ impl<T: ?Sized, S> Deref for Arc<T, S> {
     }
 }
 
-impl<T: Clone, S> Arc<T, S> {
+impl<T: Clone, S> Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     /// Makes a mutable reference to the `Arc`, cloning if necessary
     ///
     /// This is functionally equivalent to [`Arc::make_mut`][mm] from the standard library.
@@ -521,7 +544,10 @@ impl<T: Clone, S> Arc<T, S> {
     }
 }
 
-impl<T: ?Sized, S> Arc<T, S> {
+impl<T: ?Sized, S> Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     /// Provides mutable access to the contents _if_ the `Arc` is uniquely owned.
     #[inline]
     pub fn get_mut(this: &mut Self) -> Option<&mut T> {
@@ -594,7 +620,10 @@ impl<T: ?Sized, S> Arc<T, S> {
     }
 }
 
-impl<T: ?Sized, S> Drop for Arc<T, S> {
+impl<T: ?Sized, S> Drop for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     #[inline]
     fn drop(&mut self) {
         // Because `fetch_sub` is already atomic, we do not need to synchronize
