@@ -1,10 +1,10 @@
 [package]
-name = "triomphe"
+name = "backdrop_arc"
 version = "0.1.8"
-authors = ["The Servo Project Developers"]
+authors = ["Qqwy / Marten"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/Manishearth/triomphe"
-description = "A fork of std::sync::Arc with some extra functionality and without weak references (originally servo_arc)"
+repository = "https://github.com/Qqwy/rust-backdrop_arc"
+description = "Arc which will drop its contents in the background (configurable) when the refcount becomes zero. (A fork of triomphe)"
 keywords = ["arc", "ffi", "sync", "data-structure"]
 categories = ["concurrency", "data-structures"]
 

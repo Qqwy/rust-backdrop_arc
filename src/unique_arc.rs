@@ -33,7 +33,7 @@ use super::{Arc, ArcInner};
 /// out of it.
 ///
 /// ```rust
-/// # use triomphe::{UniqueArc, TrivialStrategy};
+/// # use backdrop_arc::{UniqueArc, TrivialStrategy};
 /// let data = [1, 2, 3, 4, 5];
 /// let mut x: UniqueArc<_, TrivialStrategy> = UniqueArc::new(data);
 /// x[4] = 7; // mutate!
