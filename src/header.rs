@@ -7,6 +7,8 @@ use core::marker::PhantomData;
 use core::mem::{self, ManuallyDrop};
 use core::ptr::{self, addr_of_mut};
 use core::usize;
+extern crate backdrop;
+use self::backdrop::BackdropStrategy;
 
 use super::{Arc, ArcInner};
 
@@ -22,7 +24,10 @@ pub struct HeaderSlice<H, T: ?Sized> {
     pub slice: T,
 }
 
-impl<H, T, S> Arc<HeaderSlice<H, [T]>, S> {
+impl<H, T, S> Arc<HeaderSlice<H, [T]>, S>
+where
+    S: BackdropStrategy<Box<HeaderSlice<H, [T]>>>,
+{
     /// Creates an Arc for a HeaderSlice using the given header struct and
     /// iterator to generate the slice. The resulting Arc will be fat.
     pub fn from_header_and_iter<I>(header: H, mut items: I) -> Self
@@ -140,7 +145,10 @@ impl<H, T, S> Arc<HeaderSlice<H, [T]>, S> {
     }
 }
 
-impl<H, S> Arc<HeaderSlice<H, str>, S> {
+impl<H, S> Arc<HeaderSlice<H, str>, S>
+where
+    S: BackdropStrategy<Box<HeaderSlice<H, str>>>,
+{
     /// Creates an Arc for a HeaderSlice using the given header struct and
     /// a str slice to generate the slice. The resulting Arc will be fat.
     pub fn from_header_and_str(header: H, string: &str) -> Self {
@@ -174,7 +182,11 @@ impl<H> HeaderWithLength<H> {
     }
 }
 
-impl<T: ?Sized, S> From<Arc<HeaderSlice<(), T>, S>> for Arc<T, S> {
+impl<T: ?Sized, S> From<Arc<HeaderSlice<(), T>, S>> for Arc<T, S>
+where
+    S: BackdropStrategy<Box<HeaderSlice<(), T>>>,
+    S: BackdropStrategy<Box<T>>,
+{
     fn from(this: Arc<HeaderSlice<(), T>, S>) -> Self {
         debug_assert_eq!(
             Layout::for_value::<HeaderSlice<(), T>>(&this),
@@ -186,26 +198,39 @@ impl<T: ?Sized, S> From<Arc<HeaderSlice<(), T>, S>> for Arc<T, S> {
     }
 }
 
-impl<T: ?Sized, S> From<Arc<T, S>> for Arc<HeaderSlice<(), T>, S> {
+impl<T: ?Sized, S> From<Arc<T, S>> for Arc<HeaderSlice<(), T>, S>
+where
+    S: BackdropStrategy<Box<HeaderSlice<(), T>>>,
+    S: BackdropStrategy<Box<T>>,
+{
     fn from(this: Arc<T, S>) -> Self {
         // Safety: `T` and `HeaderSlice<(), T>` has the same layout
         unsafe { Arc::from_raw_inner(Arc::into_raw_inner(this) as _) }
     }
 }
 
-impl<T: Copy, S> From<&[T]> for Arc<[T], S> {
+impl<T: Copy, S> From<&[T]> for Arc<[T], S>
+where
+    S: BackdropStrategy<Box<[T]>>,
+{
     fn from(slice: &[T]) -> Self {
         Arc::from_header_and_slice((), slice).into()
     }
 }
 
-impl<S> From<&str> for Arc<str, S> {
+impl<S> From<&str> for Arc<str, S>
+where
+    S: BackdropStrategy<Box<str>>,
+{
     fn from(s: &str) -> Self {
         Arc::from_header_and_str((), s).into()
     }
 }
 
-impl<S> From<String> for Arc<str, S> {
+impl<S> From<String> for Arc<str, S>
+where
+    S: BackdropStrategy<Box<str>>,
+{
     fn from(s: String) -> Self {
         Self::from(&s[..])
     }
@@ -214,7 +239,10 @@ impl<S> From<String> for Arc<str, S> {
 // FIXME: once `pointer::with_metadata_of` is stable or
 //        implementable on stable without assuming ptr layout
 //        this will be able to accept `T: ?Sized`.
-impl<T, S> From<Box<T>> for Arc<T, S> {
+impl<T, S> From<Box<T>> for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn from(b: Box<T>) -> Self {
         let layout = Layout::for_value::<T>(&b);
 
@@ -249,7 +277,11 @@ impl<T, S> From<Box<T>> for Arc<T, S> {
     }
 }
 
-impl<T, S> From<Vec<T>> for Arc<[T], S> {
+impl<T, S> From<Vec<T>> for Arc<[T], S>
+where
+    S: BackdropStrategy<Box<[T]>>,
+
+{
     fn from(v: Vec<T>) -> Self {
         Arc::from_header_and_vec((), v).into()
     }

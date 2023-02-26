@@ -49,7 +49,7 @@ unsafe impl<T: ?Sized + Sync + Send> Sync for ArcInner<T> {}
 ///
 /// [`Arc`]: https://doc.rust-lang.org/stable/std/sync/struct.Arc.html
 #[repr(transparent)]
-pub struct Arc<T: ?Sized, S: BackdropStrategy<T>> {
+pub struct Arc<T: ?Sized, S: BackdropStrategy<Box<T>>> {
     pub(crate) p: ptr::NonNull<ArcInner<T>>,
     pub(crate) phantom: PhantomData<T>,
     pub(crate) phantom_strategy: PhantomData<S>,
@@ -58,7 +58,7 @@ pub struct Arc<T: ?Sized, S: BackdropStrategy<T>> {
 unsafe impl<T: ?Sized + Sync + Send, S> Send for Arc<T, S> {}
 unsafe impl<T: ?Sized + Sync + Send, S> Sync for Arc<T, S> {}
 
-impl<T, S> Arc<T, S> {
+impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     /// Construct an `Arc<T, S>`
     #[inline]
     pub fn new(data: T) -> Self {
@@ -150,7 +150,7 @@ impl<T, S> Arc<T, S> {
     }
 }
 
-impl<T, S> Arc<[T], S> {
+impl<T, S: BackdropStrategy<Box<T>>> Arc<[T], S> {
     /// Reconstruct the `Arc<[T]>` from a raw pointer obtained from `into_raw()`.
     ///
     /// [`Arc::from_raw`] should accept unsized types, but this is not trivial to do correctly
@@ -169,7 +169,7 @@ impl<T, S> Arc<[T], S> {
     }
 }
 
-impl<T: ?Sized, S> Arc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     /// Convert the Arc<T, S> to a raw pointer, suitable for use across FFI
     ///
     /// Note: This returns a pointer to the data T, which is offset in the allocation.
@@ -325,7 +325,7 @@ impl<T: ?Sized, S> Arc<T, S> {
     }
 }
 
-impl<H, T, S> Arc<HeaderSlice<H, [T]>, S> {
+impl<H, T, S: BackdropStrategy<HeaderSlice<H, [T]>>> Arc<HeaderSlice<H, [T]>, S> {
     pub(super) fn allocate_for_header_and_slice(
         len: usize,
     ) -> NonNull<ArcInner<HeaderSlice<H, [T]>>> {
@@ -353,7 +353,7 @@ impl<H, T, S> Arc<HeaderSlice<H, [T]>, S> {
     }
 }
 
-impl<T, S> Arc<MaybeUninit<T>, S> {
+impl<T, S: BackdropStrategy<Box<T>>> Arc<MaybeUninit<T>, S> {
     /// Create an Arc contains an `MaybeUninit<T>`.
     pub fn new_uninit() -> Self {
         Arc::new(MaybeUninit::<T>::uninit())
@@ -387,7 +387,7 @@ impl<T, S> Arc<MaybeUninit<T>, S> {
     }
 }
 
-impl<T, S> Arc<[MaybeUninit<T>], S> {
+impl<T, S: BackdropStrategy<Box<T>>> Arc<[MaybeUninit<T>], S> {
     /// Create an Arc contains an array `[MaybeUninit<T>]` of `len`.
     pub fn new_uninit_slice(len: usize) -> Self {
         UniqueArc::new_uninit_slice(len).shareable()
@@ -631,7 +631,10 @@ impl<T: ?Sized, S> Drop for Arc<T, S> {
     }
 }
 
-impl<T: ?Sized + PartialEq, S> PartialEq for Arc<T, S> {
+impl<T: ?Sized + PartialEq, S> PartialEq for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn eq(&self, other: &Arc<T, S>) -> bool {
         Self::ptr_eq(self, other) || *(*self) == *(*other)
     }
@@ -642,7 +645,10 @@ impl<T: ?Sized + PartialEq, S> PartialEq for Arc<T, S> {
     }
 }
 
-impl<T: ?Sized + PartialOrd, S> PartialOrd for Arc<T, S> {
+impl<T: ?Sized + PartialOrd, S> PartialOrd for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn partial_cmp(&self, other: &Arc<T, S>) -> Option<Ordering> {
         (**self).partial_cmp(&**other)
     }
@@ -664,66 +670,96 @@ impl<T: ?Sized + PartialOrd, S> PartialOrd for Arc<T, S> {
     }
 }
 
-impl<T: ?Sized + Ord, S> Ord for Arc<T, S> {
+impl<T: ?Sized + Ord, S> Ord for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn cmp(&self, other: &Arc<T, S>) -> Ordering {
         (**self).cmp(&**other)
     }
 }
 
-impl<T: ?Sized + Eq, S> Eq for Arc<T, S> {}
+impl<T: ?Sized + Eq, S> Eq for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{}
 
-impl<T: ?Sized + fmt::Display, S> fmt::Display for Arc<T, S> {
+impl<T: ?Sized + fmt::Display, S> fmt::Display for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
     }
 }
 
-impl<T: ?Sized + fmt::Debug, S> fmt::Debug for Arc<T, S> {
+impl<T: ?Sized + fmt::Debug, S> fmt::Debug for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<T: ?Sized, S> fmt::Pointer for Arc<T, S> {
+impl<T: ?Sized, S> fmt::Pointer for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Pointer::fmt(&self.ptr(), f)
     }
 }
 
-impl<T: Default, S> Default for Arc<T, S> {
+impl<T: Default, S> Default for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     #[inline]
     fn default() -> Arc<T, S> {
         Arc::new(Default::default())
     }
 }
 
-impl<T: ?Sized + Hash, S> Hash for Arc<T, S> {
+impl<T: ?Sized + Hash, S> Hash for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn hash<H: Hasher>(&self, state: &mut H) {
         (**self).hash(state)
     }
 }
 
-impl<T, S> From<T> for Arc<T, S> {
+impl<T, S: BackdropStrategy<Box<T>>> From<T> for Arc<T, S> {
     #[inline]
     fn from(t: T) -> Self {
         Arc::new(t)
     }
 }
 
-impl<A, S> FromIterator<A> for Arc<[A], S> {
+impl<A, S: BackdropStrategy<Box<[A]>>> FromIterator<A> for Arc<[A], S>
+where
+    S: BackdropStrategy<Box<[A]>>,
+{
     fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
         UniqueArc::from_iter(iter).shareable()
     }
 }
 
-impl<T: ?Sized, S> borrow::Borrow<T> for Arc<T, S> {
+impl<T: ?Sized, S> borrow::Borrow<T> for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     #[inline]
     fn borrow(&self) -> &T {
         &**self
     }
 }
 
-impl<T: ?Sized, S> AsRef<T> for Arc<T, S> {
+impl<T: ?Sized, S> AsRef<T> for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     #[inline]
     fn as_ref(&self) -> &T {
         &**self
@@ -731,12 +767,21 @@ impl<T: ?Sized, S> AsRef<T> for Arc<T, S> {
 }
 
 #[cfg(feature = "stable_deref_trait")]
-unsafe impl<T: ?Sized> StableDeref for Arc<T, S> {}
+unsafe impl<T: ?Sized, S> StableDeref for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{}
 #[cfg(feature = "stable_deref_trait")]
-unsafe impl<T: ?Sized> CloneStableDeref for Arc<T, S> {}
+unsafe impl<T: ?Sized, S> CloneStableDeref for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{}
 
 #[cfg(feature = "serde")]
-impl<'de, T: Deserialize<'de>, S> Deserialize<'de> for Arc<T, S> {
+impl<'de, T: Deserialize<'de>, S> Deserialize<'de> for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn deserialize<D>(deserializer: D) -> Result<Arc<T, S>, D::Error>
     where
         D: ::serde::de::Deserializer<'de>,
@@ -746,7 +791,10 @@ impl<'de, T: Deserialize<'de>, S> Deserialize<'de> for Arc<T, S> {
 }
 
 #[cfg(feature = "serde")]
-impl<T: Serialize, S> Serialize for Arc<T, S> {
+impl<T: Serialize, S> Serialize for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
     where
         Ser: ::serde::ser::Serializer,
@@ -789,7 +837,10 @@ unsafe impl<T, U: ?Sized> unsize::CoerciblePtr<U> for Arc<T, S> {
 }
 
 #[track_caller]
-fn must_be_unique<T: ?Sized, S>(arc: &mut Arc<T, S>) -> &mut UniqueArc<T, S> {
+fn must_be_unique<T: ?Sized, S>(arc: &mut Arc<T, S>) -> &mut UniqueArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+{
     match Arc::try_as_unique(arc) {
         Ok(unique) => unique,
         Err(this) => panic!("`Arc` must be unique in order for this operation to be safe, there are currently {} copies", Arc::count(this)),

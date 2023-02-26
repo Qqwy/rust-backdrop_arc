@@ -42,7 +42,7 @@ use super::{Arc, ArcInner};
 #[repr(transparent)]
 pub struct UniqueArc<T: ?Sized, S: BackdropStrategy<T>>(Arc<T, S>);
 
-impl<T, S> UniqueArc<T, S> {
+impl<T, S: BackdropStrategy<T>> UniqueArc<T, S> {
     #[inline]
     /// Construct a new UniqueArc
     pub fn new(data: T) -> Self {
@@ -120,7 +120,7 @@ impl<T: ?Sized, S> UniqueArc<T, S> {
     }
 }
 
-impl<T, S> UniqueArc<MaybeUninit<T>, S> {
+impl<T, S: BackdropStrategy<T>> UniqueArc<MaybeUninit<T>, S> {
     /// Calls `MaybeUninit::write` on the contained value.
     pub fn write(&mut self, val: T) -> &mut T {
         unsafe {
@@ -157,7 +157,7 @@ impl<T, S> UniqueArc<MaybeUninit<T>, S> {
     }
 }
 
-impl<T, S> UniqueArc<[MaybeUninit<T>], S> {
+impl<T, S: BackdropStrategy<[MaybeUninit<T>]>> UniqueArc<[MaybeUninit<T>], S> {
     /// Create an Arc contains an array `[MaybeUninit<T>]` of `len`.
     pub fn new_uninit_slice(len: usize) -> Self {
         let ptr: NonNull<ArcInner<HeaderSlice<(), [MaybeUninit<T>]>>> =
@@ -183,7 +183,7 @@ impl<T, S> UniqueArc<[MaybeUninit<T>], S> {
     }
 }
 
-impl<T: ?Sized, S> TryFrom<Arc<T, S>> for UniqueArc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<T>> TryFrom<Arc<T, S>> for UniqueArc<T, S> {
     type Error = Arc<T, S>;
 
     fn try_from(arc: Arc<T, S>) -> Result<Self, Self::Error> {
@@ -191,7 +191,7 @@ impl<T: ?Sized, S> TryFrom<Arc<T, S>> for UniqueArc<T, S> {
     }
 }
 
-impl<T: ?Sized, S> Deref for UniqueArc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<T>> Deref for UniqueArc<T, S> {
     type Target = T;
 
     #[inline]
@@ -200,7 +200,7 @@ impl<T: ?Sized, S> Deref for UniqueArc<T, S> {
     }
 }
 
-impl<T: ?Sized, S> DerefMut for UniqueArc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<T>> DerefMut for UniqueArc<T, S> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
         // We know this to be uniquely owned
@@ -208,7 +208,7 @@ impl<T: ?Sized, S> DerefMut for UniqueArc<T, S> {
     }
 }
 
-impl<A, S> FromIterator<A> for UniqueArc<[A], S> {
+impl<A, S: BackdropStrategy<[A]>> FromIterator<A> for UniqueArc<[A], S> {
     fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
         let iter = iter.into_iter();
         let (lower, upper) = iter.size_hint();

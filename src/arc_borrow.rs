@@ -2,6 +2,8 @@ use core::mem;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
 use core::ptr;
+extern crate backdrop;
+use self::backdrop::BackdropStrategy;
 
 use super::Arc;
 
@@ -32,7 +34,7 @@ impl<'a, T> Clone for ArcBorrow<'a, T> {
     }
 }
 
-impl<'a, T> ArcBorrow<'a, T> {
+impl<'a, T, S: BackdropStrategy<T>> ArcBorrow<'a, T> {
     /// Clone this as an `Arc<T, S>`. This bumps the refcount.
     #[inline]
     pub fn clone_arc(&self) -> Arc<T, S> {
