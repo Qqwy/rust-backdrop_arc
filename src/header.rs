@@ -291,7 +291,7 @@ where
     }
 }
 
-pub(crate) type HeaderSliceWithLength<H, T> = HeaderSlice<HeaderWithLength<H>, T>;
+// pub(crate) type HeaderSliceWithLength<H, T> = HeaderSlice<HeaderWithLength<H>, T>;
 
 #[cfg(test)]
 mod tests {

@@ -9,7 +9,7 @@ use core::ptr::{self, NonNull};
 use core::sync::atomic::AtomicUsize;
 
 extern crate backdrop;
-use self::backdrop::{BackdropStrategy, TrivialStrategy};
+use self::backdrop::BackdropStrategy;
 
 use crate::iterator_as_exact_size_iterator::IteratorAsExactSizeIterator;
 use crate::HeaderSlice;
