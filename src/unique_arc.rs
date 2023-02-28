@@ -205,6 +205,28 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> TryFrom<Arc<T, S>> for UniqueArc<T,
     }
 }
 
+
+#[cfg(feature = "triomphe")]
+extern crate triomphe;
+
+#[cfg(feature = "triomphe")]
+/// Converting to- and from a triomphe::Arc<T> is a zero-cost operation
+impl<T, S: BackdropStrategy<Box<T>>> From<triomphe::UniqueArc<T>> for UniqueArc<T, S> {
+    #[inline]
+    fn from(arc: triomphe::UniqueArc<T>) -> Self {
+        unsafe { core::mem::transmute(arc) }
+    }
+}
+
+#[cfg(feature = "triomphe")]
+/// Converting to- and from a triomphe::Arc<T> is a zero-cost operation
+impl<T, S: BackdropStrategy<Box<T>>> From<UniqueArc<T, S>> for triomphe::UniqueArc<T> {
+    #[inline]
+    fn from(arc: UniqueArc<T, S>) -> Self {
+        unsafe { core::mem::transmute(arc) }
+    }
+}
+
 impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Deref for UniqueArc<T, S> {
     type Target = T;
 
