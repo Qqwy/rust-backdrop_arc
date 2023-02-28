@@ -205,7 +205,6 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> TryFrom<Arc<T, S>> for UniqueArc<T,
     }
 }
 
-
 #[cfg(feature = "triomphe")]
 extern crate triomphe;
 
