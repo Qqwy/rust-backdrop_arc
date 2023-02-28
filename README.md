@@ -18,18 +18,20 @@ On the other hand, weak pointers are not 'free':
 
 Therefore, `backdrop_arc` is modeled on the excellent [`triomphe`](https://crates.io/crates/triomphe) library.
 Converting a [`backdrop_arc::Arc`] to and from a [`triomphe::Arc`] is a zero-cost operation, as the two types are guaranteed to have the same representation in memory.
-(The same holds true for [`backdrop_arc::UniqueArc`] <-> `triomphe::UniqueArc`)
+(The same holds true for [`backdrop_arc::UniqueArc`] <-> [`triomphe::UniqueArc`])
 
 Not supporting weak pointers enables a bunch of other features:
 - [`backdrop_arc::Arc`] does not need any read-modify-update operations to handle the possibility of weak references.
 - [`backdrop_arc::UniqueArc`] allows one to construct a temporarily-mutable Arc which can be converted to a regular [`backdrop_arc::Arc`] later.
 - `backdrop_arc::OffsetArc` can be used transparently from C++ code and is compatible with (and can be converted to/from) [`backdrop_arc::Arc`].
-- `backdrop_arc::ArcBorrow` is functionally similar to `&backdrop_arc::Arc<T>`, however in memory it's simply `&T`. This makes it more flexible for FFI; the source of the borrow need not be an Arc pinned on the stack (and can instead be a pointer from C++, or an `OffsetArc`). Additionally, this helps avoid pointer-chasing.
+- [`backdrop_arc::ArcBorrow`] is functionally similar to `&backdrop_arc::Arc<T>`, however in memory it's simply `&T`. This makes it more flexible for FFI; the source of the borrow need not be an Arc pinned on the stack (and can instead be a pointer from C++, or an `OffsetArc`). Additionally, this helps avoid pointer-chasing.
 - [`backdrop_arc::Arc`] has can be constructed for dynamically-sized types via `from_header_and_iter`
-- `backdrop_arc::ArcUnion` is union of two `backdrop_arc:Arc`s which fits inside one word of memory
+- [`backdrop_arc::ArcUnion`] is union of two [`backdrop_arc:Arc`]s which fits inside one word of memory
 
 [`backdrop_arc::Arc`]: https://docs.rs/triomphe/latest/backdrop_arc/struct.Arc.html
-[`backdrop_arc::UniqueArc`]: https://docs.rs/triomphe/latest/backdrop_arc/struct.Arc.html
+[`backdrop_arc::UniqueArc`]: https://docs.rs/triomphe/latest/backdrop_arc/struct.UniqueArc.html
+[`backdrop_arc::ArcBorrow`]: https://docs.rs/triomphe/latest/backdrop_arc/struct.ArcBorrow.html
+[`backdrop_arc::ArcUnion`]: https://docs.rs/triomphe/latest/backdrop_arc/struct.ArcUnion.html
 [`triomphe::Arc`]: https://docs.rs/triomphe/latest/triomphe/struct.Arc.html
 [`triomphe::UniqueArc`]: https://docs.rs/triomphe/latest/triomphe/struct.UniqueArc.html
 
