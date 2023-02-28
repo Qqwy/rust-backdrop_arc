@@ -1,5 +1,5 @@
-use arc_swap::RefCnt;
 use super::backdrop::BackdropStrategy;
+use arc_swap::RefCnt;
 
 use crate::Arc;
 
