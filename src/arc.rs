@@ -47,6 +47,24 @@ unsafe impl<T: ?Sized + Sync + Send> Sync for ArcInner<T> {}
 /// See the documentation for [`Arc`] in the standard library. Unlike the
 /// standard library `Arc`, this `Arc` does not support weak reference counting.
 ///
+/// This `Arc` allows customizing how it is dropped:
+/// ```
+/// extern crate backdrop;
+/// use backdrop_arc::Arc;
+/// use backdrop::LeakStrategy;
+///
+/// // Either specify the return type:
+/// let mynum: Arc<usize, LeakStrategy> = Arc::new(42);
+///
+/// // Or use the 'Turbofish' syntax on the function call:
+/// let mynum2 = Arc::<_, LeakStrategy>::new(42);
+///
+/// assert_eq!(mynum, mynum2);
+/// // <- Because we are using the LeakStrategy, we leak memory here. Fun! :-)
+/// ```
+///
+/// See [`backdrop::Backdrop`] for more info.
+///
 /// [`Arc`]: https://doc.rust-lang.org/stable/std/sync/struct.Arc.html
 #[repr(transparent)]
 pub struct Arc<T: ?Sized, S: BackdropStrategy<Box<T>>> {
