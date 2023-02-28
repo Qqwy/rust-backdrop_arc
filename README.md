@@ -12,7 +12,8 @@ This allows better reasoning about how long code using an Arc will take, since t
 An `backdrop_arc::Arc<T, S>` behaves much like a [`Arc<backdrop::Backdrop<Box<T>, S>>`](https://docs.rs/backdrop/latest/backdrop/struct.Backdrop.html#the-problem-with-arc),
 in that the backdrop strategy is executed _when the last Arc clone goes out of scope_.
 The difference with `Arc<backdrop::Backdrop<Box<T>, S>>` is that there is no double pointer-indirection (arc -> box -> T), managing the allocated `T` is done directly in the Arc.
-[`backdrop_arc::Arc`]: https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.Arc.html
+
+[`backdrop_arc::Arc`]: <https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.Arc.html>
 
 ### 2. No weak pointers => smaller arcs, predictable drop behaviour
 
@@ -32,14 +33,15 @@ Not supporting weak pointers enables a bunch of other features:
 - [`backdrop_arc::ArcBorrow`] is functionally similar to `&backdrop_arc::Arc<T>`, however in memory it's simply `&T`. This makes it more flexible for FFI; the source of the borrow need not be an Arc pinned on the stack (and can instead be a pointer from C++, or an `OffsetArc`). Additionally, this helps avoid pointer-chasing.
 - [`backdrop_arc::Arc`] has can be constructed for dynamically-sized types via `from_header_and_iter`
 - [`backdrop_arc::ArcUnion`] is union of two [`backdrop_arc:Arc`]s which fits inside one word of memory
-[`std::sync::Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
-[`backdrop_arc::Arc`]: https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.Arc.html
-[`backdrop_arc::UniqueArc`]: https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.UniqueArc.html
-[`backdrop_arc::ArcBorrow`]: https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.ArcBorrow.html
-[`backdrop_arc::ArcUnion`]: https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.ArcUnion.html
-[`backdrop_arc::OffsetArc`]: https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.OffsetArc.html
-[`triomphe::Arc`]: https://docs.rs/triomphe/latest/triomphe/struct.Arc.html
-[`triomphe::UniqueArc`]: https://docs.rs/triomphe/latest/triomphe/struct.UniqueArc.html
+
+[`std::sync::Arc`]: <https://doc.rust-lang.org/std/sync/struct.Arc.html>
+[`backdrop_arc::Arc`]: <https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.Arc.html>
+[`backdrop_arc::UniqueArc`]: <https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.UniqueArc.html>
+[`backdrop_arc::ArcBorrow`]: <https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.ArcBorrow.html>
+[`backdrop_arc::ArcUnion`]: <https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.ArcUnion.html>
+[`backdrop_arc::OffsetArc`]: <https://docs.rs/backdrop_arc/latest/backdrop_arc/struct.OffsetArc.html>
+[`triomphe::Arc`]: <https://docs.rs/triomphe/latest/triomphe/struct.Arc.html>
+[`triomphe::UniqueArc`]: <https://docs.rs/triomphe/latest/triomphe/struct.UniqueArc.html>
 
 # Features
 
@@ -50,8 +52,8 @@ Not supporting weak pointers enables a bunch of other features:
 - `triomphe`: Convert (zero-cost) between [`triomphe::Arc`] <-> [`backdrop_arc::Arc`] (and [`backdrop_arc::UniqueArc`] <-> [`triomphe::UniqueArc`]).
 - `unsize` use [`backdrop_arc::Arc`] together with the [`unsize`](https://crates.io/crates/unsize) crate.
 
-[`triomphe::Arc`]: https://docs.rs/triomphe/latest/triomphe/struct.Arc.html
-[`triomphe::UniqueArc`]: https://docs.rs/triomphe/latest/triomphe/struct.UniqueArc.html
+[`triomphe::Arc`]: <https://docs.rs/triomphe/latest/triomphe/struct.Arc.html>
+[`triomphe::UniqueArc`]: <https://docs.rs/triomphe/latest/triomphe/struct.UniqueArc.html>
 
 
 ## Attribution
