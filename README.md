@@ -49,10 +49,6 @@ Not supporting weak pointers enables a bunch of other features:
 [`triomphe::UniqueArc`]: https://docs.rs/triomphe/latest/triomphe/struct.UniqueArc.html
 
 
-Work-in-progress.
-
-
-
 ## Attribution
 
 The source code of `backdrop_arc` is very heavily based on (and originally a fork of) `triomphe`, which itself originates from `servo_arc`.
