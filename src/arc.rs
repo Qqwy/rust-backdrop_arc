@@ -835,9 +835,13 @@ where
 // This does _not_ mean that any T can be unsized into an U, but rather than if such unsizing is
 // possible then it can be propagated into the Arc<T, S>.
 #[cfg(feature = "unsize")]
-unsafe impl<T, U: ?Sized> unsize::CoerciblePtr<U> for Arc<T, S> {
+unsafe impl<T, U: ?Sized, S> unsize::CoerciblePtr<U> for Arc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<U>>,
+{
     type Pointee = T;
-    type Output = Arc<U>;
+    type Output = Arc<U, S>;
 
     fn as_sized_ptr(&mut self) -> *mut T {
         // Returns a pointer to the complete inner. The unsizing itself won't care about the
@@ -845,7 +849,7 @@ unsafe impl<T, U: ?Sized> unsize::CoerciblePtr<U> for Arc<T, S> {
         self.p.as_ptr() as *mut T
     }
 
-    unsafe fn replace_ptr(self, new: *mut U) -> Arc<U> {
+    unsafe fn replace_ptr(self, new: *mut U) -> Arc<U, S> {
         // Fix the provenance by ensuring that of `self` is used.
         let inner = ManuallyDrop::new(self);
         let p = inner.p.as_ptr() as *mut T;

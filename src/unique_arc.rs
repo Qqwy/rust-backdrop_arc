@@ -248,16 +248,20 @@ where
 // duplicate the Arc, such that replace_ptr returns a valid instance. This holds since it consumes
 // a unique owner of the contained ArcInner.
 #[cfg(feature = "unsize")]
-unsafe impl<T, U: ?Sized> unsize::CoerciblePtr<U> for UniqueArc<T, S> {
+unsafe impl<T, U: ?Sized, S> unsize::CoerciblePtr<U> for UniqueArc<T, S>
+where
+    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<U>>,
+{
     type Pointee = T;
-    type Output = UniqueArc<U>;
+    type Output = UniqueArc<U, S>;
 
     fn as_sized_ptr(&mut self) -> *mut T {
         // Dispatch to the contained field.
         unsize::CoerciblePtr::<U>::as_sized_ptr(&mut self.0)
     }
 
-    unsafe fn replace_ptr(self, new: *mut U) -> UniqueArc<U> {
+    unsafe fn replace_ptr(self, new: *mut U) -> UniqueArc<U, S> {
         // Dispatch to the contained field, work around conflict of destructuring and Drop.
         let inner = ManuallyDrop::new(self);
         UniqueArc(ptr::read(&inner.0).replace_ptr(new))
