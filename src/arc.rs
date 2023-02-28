@@ -770,7 +770,7 @@ impl<T, S: BackdropStrategy<Box<T>>> From<T> for Arc<T, S> {
 extern crate triomphe;
 
 #[cfg(feature = "triomphe")]
-/// Converting to- and from a triomphe::Arc<T> is a zero-cost operation
+/// Converting to- and from a [`triomphe::Arc<T>`] is a zero-cost operation
 impl<T, S: BackdropStrategy<Box<T>>> From<triomphe::Arc<T>> for Arc<T, S> {
     #[inline]
     fn from(arc: triomphe::Arc<T>) -> Self {
@@ -779,7 +779,7 @@ impl<T, S: BackdropStrategy<Box<T>>> From<triomphe::Arc<T>> for Arc<T, S> {
 }
 
 #[cfg(feature = "triomphe")]
-/// Converting to- and from a triomphe::Arc<T> is a zero-cost operation
+/// Converting to- and from a [`triomphe::Arc<T>`] is a zero-cost operation
 impl<T, S: BackdropStrategy<Box<T>>> From<Arc<T, S>> for triomphe::Arc<T> {
     #[inline]
     fn from(arc: Arc<T, S>) -> Self {

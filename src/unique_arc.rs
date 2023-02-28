@@ -210,7 +210,7 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> TryFrom<Arc<T, S>> for UniqueArc<T,
 extern crate triomphe;
 
 #[cfg(feature = "triomphe")]
-/// Converting to- and from a triomphe::Arc<T> is a zero-cost operation
+/// Converting to- and from a [`triomphe::UniqueArc<T>`] is a zero-cost operation
 impl<T, S: BackdropStrategy<Box<T>>> From<triomphe::UniqueArc<T>> for UniqueArc<T, S> {
     #[inline]
     fn from(arc: triomphe::UniqueArc<T>) -> Self {
@@ -219,7 +219,7 @@ impl<T, S: BackdropStrategy<Box<T>>> From<triomphe::UniqueArc<T>> for UniqueArc<
 }
 
 #[cfg(feature = "triomphe")]
-/// Converting to- and from a triomphe::Arc<T> is a zero-cost operation
+/// Converting to- and from a [`triomphe::UniqueArc<T>`] is a zero-cost operation
 impl<T, S: BackdropStrategy<Box<T>>> From<UniqueArc<T, S>> for triomphe::UniqueArc<T> {
     #[inline]
     fn from(arc: UniqueArc<T, S>) -> Self {
