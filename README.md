@@ -58,4 +58,5 @@ Not supporting weak pointers enables a bunch of other features:
 
 ## Attribution
 
-The source code of `backdrop_arc` is very heavily based on (and originally a fork of) `triomphe`, which itself originates from `servo_arc`.
+The source code of `backdrop_arc` is very heavily based on (and originally a fork of) [`triomphe`](https://crates.io/crates/triomphe),
+which itself originates from [`servo_arc`](https://crates.io/crates/servo_arc).
