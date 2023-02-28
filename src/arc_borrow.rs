@@ -1,8 +1,8 @@
+use alloc::boxed::Box;
 use core::mem;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
 use core::ptr;
-use alloc::boxed::Box;
 extern crate backdrop;
 use self::backdrop::BackdropStrategy;
 

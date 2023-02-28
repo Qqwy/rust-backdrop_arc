@@ -1,8 +1,8 @@
+use alloc::boxed::Box;
 use core::fmt;
 use core::marker::PhantomData;
 use core::ptr;
 use core::usize;
-use alloc::boxed::Box;
 
 extern crate backdrop;
 use self::backdrop::BackdropStrategy;
