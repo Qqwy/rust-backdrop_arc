@@ -1,8 +1,16 @@
-# BackdropArc
+# BackdropArc &emsp; [![Latest Version]][crates.io] [![License]][license path]
+
+[Latest Version]: https://img.shields.io/crates/v/backdrop_arc.svg
+[crates.io]: https://crates.io/crates/backdrop_arc
+[License]: https://img.shields.io/badge/license-MIT-blue.svg
+[license path]: https://github.com/qqwy/rust-backdrop_arc/blob/main/LICENSE
+[requires: rustc 1.56+]: https://img.shields.io/badge/rustc-1.56+-lightgray.svg
+[Rust 1.56.1]: https://rust-lang.org/
 
 An Arc (atomically reference counted smart pointer) that supports customized dropping strategies using [backdrop](https://crates.io/crates/backdrop).
 
 `backdrop_arc::Arc<T, BackdropStrategy>` works very much like a `std::sync::Arc<T>`, except for two differences:
+
 ### 1. Drop strategies
 
 When the last clone of a particular Arc goes out of scope, rather than dropping normally, the particular [BackdropStrategy](https://docs.rs/backdrop/latest/backdrop/trait.BackdropStrategy.html) is invoked. This way, dropping large or complex structures can be done in a background thread, background tokio task, delayed until later, etc.
@@ -60,3 +68,8 @@ Not supporting weak pointers enables a bunch of other features:
 
 The source code of `backdrop_arc` is very heavily based on (and originally a fork of) [`triomphe`](https://crates.io/crates/triomphe),
 which itself originates from [`servo_arc`](https://crates.io/crates/servo_arc).
+
+## MSRV
+
+The Minimum Supported Rust Version of backdrop_arc is Rust 1.56.1, because `backdrop` uses the edition 2021 Rust syntax.
+There are no (required) Rust features or (required) dependencies besides `backdrop`, making this a very lightweight and portable crate.
