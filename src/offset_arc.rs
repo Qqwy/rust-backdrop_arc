@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use core::fmt;
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;

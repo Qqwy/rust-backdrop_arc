@@ -80,7 +80,7 @@ impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     /// This is a zero-cost operation.
     pub fn with_strategy<S2: BackdropStrategy<Box<T>>>(arc: Arc<T, S>) -> Arc<T, S2> {
         // Safety: S and S2 are ZSTs which only do something at drop-time
-        unsafe { std::mem::transmute(arc) }
+        unsafe { core::mem::transmute(arc) }
     }
 
     /// Reconstruct the Arc<T, S> from a raw pointer obtained from into_raw()
