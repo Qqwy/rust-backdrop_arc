@@ -47,7 +47,12 @@ unsafe impl<T: ?Sized + Sync + Send> Sync for ArcInner<T> {}
 /// See the documentation for [`Arc`] in the standard library. Unlike the
 /// standard library `Arc`, this `Arc` does not support weak reference counting.
 ///
-/// This `Arc` allows customizing how it is dropped:
+/// This `Arc` allows customizing how it is dropped.
+/// An `backdrop_arc::Arc<T, S>` behaves much like a [`Arc<backdrop::Backdrop<Box<T>, S>>`],
+/// in that the backdrop strategy is executed _when the last Arc clone goes out of scope_.
+/// The difference with [`Arc<backdrop::Backdrop<Box<T>, S>>`] is that there is no double pointer-indirection (arc -> box -> T), managing the allocated `T` is done directly in the Arc.
+///
+/// Basic usage is as follows:
 /// ```
 /// extern crate backdrop;
 /// use backdrop_arc::Arc;
