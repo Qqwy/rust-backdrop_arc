@@ -5,8 +5,8 @@ authors = ["Qqwy / Marten"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Qqwy/rust-backdrop_arc"
 description = "Arc which will drop its large or complex contents in the background with Backdrop! (later, on another thread, or both! Fully customizable! Tokio supported!)"
-keywords = ["arc", "ffi", "sync", "data-structure"]
-categories = ["concurrency", "data-structures"]
+keywords = ["arc", "ffi", "sync", "data-structure", "drop"]
+categories = ["concurrency", "data-structures", "no-std", "memory-management", "asynchronous"]
 
 [features]
 std = []
