@@ -1,4 +1,4 @@
-# BackdropArc &emsp; [![Latest Version]][crates.io] [![License]][license path]
+# BackdropArc &emsp; [![Latest Version]][crates.io] [![License]][license path] [requires: rustc 1.56+]][Rust 1.56.1]
 
 [Latest Version]: https://img.shields.io/crates/v/backdrop_arc.svg
 [crates.io]: https://crates.io/crates/backdrop_arc
