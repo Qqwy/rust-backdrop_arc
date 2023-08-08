@@ -1,5 +1,6 @@
 use alloc::alloc::handle_alloc_error;
 use alloc::boxed::Box;
+use backdrop::Backdrop;
 use core::alloc::Layout;
 use core::borrow;
 use core::cmp::Ordering;
@@ -270,7 +271,7 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     // Non-inlined part of `drop`. Just invokes the destructor.
     #[inline(never)]
     unsafe fn drop_slow(&mut self) {
-        let _ = Box::from_raw(self.ptr());
+        let _ = Backdrop::<_, S>::new(Box::from_raw(self.ptr()));
     }
 
     /// Test pointer equality between the two Arcs, i.e. they must be the _same_
