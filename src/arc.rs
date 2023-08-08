@@ -871,6 +871,12 @@ where
     }
 }
 
+#[cfg(feature = "yoke")]
+unsafe impl<T, S> yoke::CloneableCart for Arc<T, S>
+    where
+    S: BackdropStrategy<Box<T>>
+{}
+
 // Safety:
 // This implementation must guarantee that it is sound to call replace_ptr with an unsized variant
 // of the pointer retuned in `as_sized_ptr`. The basic property of Unsize coercion is that safety
