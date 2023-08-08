@@ -26,7 +26,7 @@ pub struct HeaderSlice<H, T: ?Sized> {
 
 impl<H, T, S> Arc<HeaderSlice<H, [T]>, S>
 where
-    S: BackdropStrategy<Box<HeaderSlice<H, [T]>>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<H, [T]>>>>,
 {
     /// Creates an Arc for a HeaderSlice using the given header struct and
     /// iterator to generate the slice. The resulting Arc will be fat.
@@ -147,7 +147,7 @@ where
 
 impl<H, S> Arc<HeaderSlice<H, str>, S>
 where
-    S: BackdropStrategy<Box<HeaderSlice<H, str>>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<H, str>>>>,
 {
     /// Creates an Arc for a HeaderSlice using the given header struct and
     /// a str slice to generate the slice. The resulting Arc will be fat.
@@ -185,8 +185,8 @@ impl<H> HeaderWithLength<H> {
 
 impl<T: ?Sized, S> From<Arc<HeaderSlice<(), T>, S>> for Arc<T, S>
 where
-    S: BackdropStrategy<Box<HeaderSlice<(), T>>>,
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), T>>>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn from(this: Arc<HeaderSlice<(), T>, S>) -> Self {
         debug_assert_eq!(
@@ -201,8 +201,8 @@ where
 
 impl<T: ?Sized, S> From<Arc<T, S>> for Arc<HeaderSlice<(), T>, S>
 where
-    S: BackdropStrategy<Box<HeaderSlice<(), T>>>,
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), T>>>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn from(this: Arc<T, S>) -> Self {
         // Safety: `T` and `HeaderSlice<(), T>` has the same layout
@@ -212,8 +212,8 @@ where
 
 impl<T: Copy, S> From<&[T]> for Arc<[T], S>
 where
-    S: BackdropStrategy<Box<[T]>>,
-    S: BackdropStrategy<Box<HeaderSlice<(), [T]>>>,
+    S: BackdropStrategy<Box<ArcInner<[T]>>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), [T]>>>>,
 {
     fn from(slice: &[T]) -> Self {
         Arc::from_header_and_slice((), slice).into()
@@ -222,8 +222,8 @@ where
 
 impl<S> From<&str> for Arc<str, S>
 where
-    S: BackdropStrategy<Box<str>>,
-    S: BackdropStrategy<Box<HeaderSlice<(), str>>>,
+    S: BackdropStrategy<Box<ArcInner<str>>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), str>>>>,
 {
     fn from(s: &str) -> Self {
         Arc::from_header_and_str((), s).into()
@@ -232,8 +232,8 @@ where
 
 impl<S> From<String> for Arc<str, S>
 where
-    S: BackdropStrategy<Box<str>>,
-    S: BackdropStrategy<Box<HeaderSlice<(), str>>>,
+    S: BackdropStrategy<Box<ArcInner<str>>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), str>>>>,
 {
     fn from(s: String) -> Self {
         Self::from(&s[..])
@@ -245,7 +245,7 @@ where
 //        this will be able to accept `T: ?Sized`.
 impl<T, S> From<Box<T>> for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn from(b: Box<T>) -> Self {
         let layout = Layout::for_value::<T>(&b);
@@ -283,8 +283,8 @@ where
 
 impl<T, S> From<Vec<T>> for Arc<[T], S>
 where
-    S: BackdropStrategy<Box<[T]>>,
-    S: BackdropStrategy<Box<HeaderSlice<(), [T]>>>,
+    S: BackdropStrategy<Box<ArcInner<[T]>>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), [T]>>>>,
 {
     fn from(v: Vec<T>) -> Self {
         Arc::from_header_and_vec((), v).into()

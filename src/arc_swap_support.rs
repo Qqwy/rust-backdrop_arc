@@ -5,7 +5,7 @@ use crate::Arc;
 
 unsafe impl<T, S> RefCnt for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     type Base = T;
 

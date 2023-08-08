@@ -40,9 +40,9 @@ use super::{Arc, ArcInner};
 /// let y = x.shareable(); // y is an Arc<T, S>
 /// ```
 #[repr(transparent)]
-pub struct UniqueArc<T: ?Sized, S: BackdropStrategy<Box<T>>>(Arc<T, S>);
+pub struct UniqueArc<T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>>(Arc<T, S>);
 
-impl<T, S: BackdropStrategy<Box<T>>> UniqueArc<T, S> {
+impl<T, S: BackdropStrategy<Box<ArcInner<T>>>> UniqueArc<T, S> {
     #[inline]
     /// Construct a new UniqueArc
     pub fn new(data: T) -> Self {
@@ -65,7 +65,7 @@ impl<T, S: BackdropStrategy<Box<T>>> UniqueArc<T, S> {
     }
 }
 
-impl<T, S: BackdropStrategy<Box<MaybeUninit<T>>>> UniqueArc<MaybeUninit<T>, S> {
+impl<T, S: BackdropStrategy<Box<ArcInner<MaybeUninit<T>>>>> UniqueArc<MaybeUninit<T>, S> {
     /// Construct an uninitialized arc
     #[inline]
     pub fn new_uninit() -> UniqueArc<MaybeUninit<T>, S> {
@@ -88,7 +88,7 @@ impl<T, S: BackdropStrategy<Box<MaybeUninit<T>>>> UniqueArc<MaybeUninit<T>, S> {
 
 impl<T: ?Sized, S> UniqueArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     /// Convert to a shareable Arc<T, S> once we're done mutating it
     #[inline]
@@ -127,8 +127,8 @@ where
 
 impl<T, S> UniqueArc<MaybeUninit<T>, S>
 where
-    S: BackdropStrategy<Box<MaybeUninit<T>>>,
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<MaybeUninit<T>>>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     /// Calls `MaybeUninit::write` on the contained value.
     pub fn write(&mut self, val: T) -> &mut T {
@@ -168,9 +168,9 @@ where
 
 impl<T, S> UniqueArc<[MaybeUninit<T>], S>
 where
-    S: BackdropStrategy<Box<HeaderSlice<(), [MaybeUninit<T>]>>>,
-    S: BackdropStrategy<Box<[MaybeUninit<T>]>>,
-    S: BackdropStrategy<Box<[T]>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), [MaybeUninit<T>]>>>>,
+    S: BackdropStrategy<Box<ArcInner<[MaybeUninit<T>]>>>,
+    S: BackdropStrategy<Box<ArcInner<[T]>>>,
 {
     /// Create an Arc contains an array `[MaybeUninit<T>]` of `len`.
     pub fn new_uninit_slice(len: usize) -> Self {
@@ -197,7 +197,7 @@ where
     }
 }
 
-impl<T: ?Sized, S: BackdropStrategy<Box<T>>> TryFrom<Arc<T, S>> for UniqueArc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> TryFrom<Arc<T, S>> for UniqueArc<T, S> {
     type Error = Arc<T, S>;
 
     fn try_from(arc: Arc<T, S>) -> Result<Self, Self::Error> {
@@ -210,7 +210,7 @@ extern crate triomphe;
 
 #[cfg(feature = "triomphe")]
 /// Converting to- and from a [`triomphe::UniqueArc<T>`] is a zero-cost operation
-impl<T, S: BackdropStrategy<Box<T>>> From<triomphe::UniqueArc<T>> for UniqueArc<T, S> {
+impl<T, S: BackdropStrategy<Box<ArcInner<T>>>> From<triomphe::UniqueArc<T>> for UniqueArc<T, S> {
     #[inline]
     fn from(arc: triomphe::UniqueArc<T>) -> Self {
         unsafe { core::mem::transmute(arc) }
@@ -219,14 +219,14 @@ impl<T, S: BackdropStrategy<Box<T>>> From<triomphe::UniqueArc<T>> for UniqueArc<
 
 #[cfg(feature = "triomphe")]
 /// Converting to- and from a [`triomphe::UniqueArc<T>`] is a zero-cost operation
-impl<T, S: BackdropStrategy<Box<T>>> From<UniqueArc<T, S>> for triomphe::UniqueArc<T> {
+impl<T, S: BackdropStrategy<Box<ArcInner<T>>>> From<UniqueArc<T, S>> for triomphe::UniqueArc<T> {
     #[inline]
     fn from(arc: UniqueArc<T, S>) -> Self {
         unsafe { core::mem::transmute(arc) }
     }
 }
 
-impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Deref for UniqueArc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> Deref for UniqueArc<T, S> {
     type Target = T;
 
     #[inline]
@@ -235,7 +235,7 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Deref for UniqueArc<T, S> {
     }
 }
 
-impl<T: ?Sized, S: BackdropStrategy<Box<T>>> DerefMut for UniqueArc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> DerefMut for UniqueArc<T, S> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
         // We know this to be uniquely owned
@@ -245,8 +245,8 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> DerefMut for UniqueArc<T, S> {
 
 impl<A, S> FromIterator<A> for UniqueArc<[A], S>
 where
-    S: BackdropStrategy<Box<HeaderSlice<(), [A]>>>,
-    S: BackdropStrategy<Box<[A]>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), [A]>>>>,
+    S: BackdropStrategy<Box<ArcInner<[A]>>>,
 {
     fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
         let iter = iter.into_iter();
@@ -271,8 +271,8 @@ where
 #[cfg(feature = "unsize")]
 unsafe impl<T, U: ?Sized, S> unsize::CoerciblePtr<U> for UniqueArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
-    S: BackdropStrategy<Box<U>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
+    S: BackdropStrategy<Box<ArcInner<U>>>,
 {
     type Pointee = T;
     type Output = UniqueArc<U, S>;

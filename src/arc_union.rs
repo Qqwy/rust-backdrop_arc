@@ -5,6 +5,8 @@ use core::ptr;
 use core::usize;
 
 extern crate backdrop;
+use crate::ArcInner;
+
 use self::backdrop::BackdropStrategy;
 
 use super::{Arc, ArcBorrow};
@@ -20,8 +22,8 @@ use super::{Arc, ArcBorrow};
 /// This could probably be extended to support four types if necessary.
 pub struct ArcUnion<A, B, S>
 where
-    S: BackdropStrategy<Box<A>>,
-    S: BackdropStrategy<Box<B>>,
+    S: BackdropStrategy<Box<ArcInner<A>>>,
+    S: BackdropStrategy<Box<ArcInner<B>>>,
 {
     p: ptr::NonNull<()>,
     phantom_a: PhantomData<A>,
@@ -31,21 +33,21 @@ where
 
 unsafe impl<A: Sync + Send, B: Send + Sync, S> Send for ArcUnion<A, B, S>
 where
-    S: BackdropStrategy<Box<A>>,
-    S: BackdropStrategy<Box<B>>,
+    S: BackdropStrategy<Box<ArcInner<A>>>,
+    S: BackdropStrategy<Box<ArcInner<B>>>,
 {
 }
 unsafe impl<A: Sync + Send, B: Send + Sync, S> Sync for ArcUnion<A, B, S>
 where
-    S: BackdropStrategy<Box<A>>,
-    S: BackdropStrategy<Box<B>>,
+    S: BackdropStrategy<Box<ArcInner<A>>>,
+    S: BackdropStrategy<Box<ArcInner<B>>>,
 {
 }
 
 impl<A: PartialEq, B: PartialEq, S> PartialEq for ArcUnion<A, B, S>
 where
-    S: BackdropStrategy<Box<A>>,
-    S: BackdropStrategy<Box<B>>,
+    S: BackdropStrategy<Box<ArcInner<A>>>,
+    S: BackdropStrategy<Box<ArcInner<B>>>,
 {
     fn eq(&self, other: &Self) -> bool {
         use crate::ArcUnionBorrow::*;
@@ -66,8 +68,8 @@ pub enum ArcUnionBorrow<'a, A: 'a, B: 'a> {
 
 impl<A, B, S> ArcUnion<A, B, S>
 where
-    S: BackdropStrategy<Box<A>>,
-    S: BackdropStrategy<Box<B>>,
+    S: BackdropStrategy<Box<ArcInner<A>>>,
+    S: BackdropStrategy<Box<ArcInner<B>>>,
 {
     unsafe fn new(ptr: *mut ()) -> Self {
         ArcUnion {
@@ -140,8 +142,8 @@ where
 
 impl<A, B, S> Clone for ArcUnion<A, B, S>
 where
-    S: BackdropStrategy<Box<A>>,
-    S: BackdropStrategy<Box<B>>,
+    S: BackdropStrategy<Box<ArcInner<A>>>,
+    S: BackdropStrategy<Box<ArcInner<B>>>,
 {
     fn clone(&self) -> Self {
         match self.borrow() {
@@ -153,8 +155,8 @@ where
 
 impl<A, B, S> Drop for ArcUnion<A, B, S>
 where
-    S: BackdropStrategy<Box<A>>,
-    S: BackdropStrategy<Box<B>>,
+    S: BackdropStrategy<Box<ArcInner<A>>>,
+    S: BackdropStrategy<Box<ArcInner<B>>>,
 {
     fn drop(&mut self) {
         match self.borrow() {
@@ -170,8 +172,8 @@ where
 
 impl<A: fmt::Debug, B: fmt::Debug, S> fmt::Debug for ArcUnion<A, B, S>
 where
-    S: BackdropStrategy<Box<A>>,
-    S: BackdropStrategy<Box<B>>,
+    S: BackdropStrategy<Box<ArcInner<A>>>,
+    S: BackdropStrategy<Box<ArcInner<B>>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.borrow(), f)

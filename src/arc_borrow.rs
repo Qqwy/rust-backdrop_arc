@@ -4,6 +4,8 @@ use core::mem::ManuallyDrop;
 use core::ops::Deref;
 use core::ptr;
 extern crate backdrop;
+use crate::ArcInner;
+
 use self::backdrop::BackdropStrategy;
 
 use super::Arc;
@@ -40,7 +42,7 @@ impl<'a, T> ArcBorrow<'a, T> {
     #[inline]
     pub fn clone_arc<S>(&self) -> Arc<T, S>
     where
-        S: BackdropStrategy<Box<T>>,
+        S: BackdropStrategy<Box<ArcInner<T>>>,
     {
         let arc = unsafe { Arc::from_raw(self.0) };
         // addref it!
@@ -71,7 +73,7 @@ impl<'a, T> ArcBorrow<'a, T> {
     where
         F: FnOnce(&Arc<T, S>) -> U,
         T: 'static,
-        S: BackdropStrategy<Box<T>>,
+        S: BackdropStrategy<Box<ArcInner<T>>>,
     {
         // Synthesize transient Arc, which never touches the refcount.
         let transient = unsafe { ManuallyDrop::new(Arc::from_raw(self.0)) };

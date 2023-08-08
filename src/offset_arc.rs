@@ -6,6 +6,8 @@ use core::ops::Deref;
 use core::ptr;
 
 extern crate backdrop;
+use crate::ArcInner;
+
 use self::backdrop::BackdropStrategy;
 
 use super::{Arc, ArcBorrow};
@@ -36,19 +38,19 @@ use super::{Arc, ArcBorrow};
 #[repr(transparent)]
 pub struct OffsetArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     pub(crate) ptr: ptr::NonNull<T>,
     pub(crate) phantom: PhantomData<T>,
     pub(crate) phantom_strategy: PhantomData<S>,
 }
 
-unsafe impl<T: Sync + Send, S> Send for OffsetArc<T, S> where S: BackdropStrategy<Box<T>> {}
-unsafe impl<T: Sync + Send, S> Sync for OffsetArc<T, S> where S: BackdropStrategy<Box<T>> {}
+unsafe impl<T: Sync + Send, S> Send for OffsetArc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
+unsafe impl<T: Sync + Send, S> Sync for OffsetArc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
 
 impl<T, S> Deref for OffsetArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     type Target = T;
     #[inline]
@@ -59,7 +61,7 @@ where
 
 impl<T, S> Clone for OffsetArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -69,7 +71,7 @@ where
 
 impl<T, S> Drop for OffsetArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn drop(&mut self) {
         let _ = Arc::<_, S>::from_raw_offset(OffsetArc {
@@ -82,7 +84,7 @@ where
 
 impl<T: fmt::Debug, S> fmt::Debug for OffsetArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
@@ -91,7 +93,7 @@ where
 
 impl<T: PartialEq, S> PartialEq for OffsetArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn eq(&self, other: &OffsetArc<T, S>) -> bool {
         *(*self) == *(*other)
@@ -105,7 +107,7 @@ where
 
 impl<T, S> OffsetArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     /// Temporarily converts |self| into a bonafide Arc and exposes it to the
     /// provided callback. The refcount is not modified.

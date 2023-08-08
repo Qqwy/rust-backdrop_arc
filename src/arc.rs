@@ -34,8 +34,12 @@ use crate::{abort, ArcBorrow, HeaderSlice, OffsetArc, UniqueArc};
 const MAX_REFCOUNT: usize = (isize::MAX) as usize;
 
 /// The object allocated by an Arc<T, S>
+///
+/// Its internals are hidden, but the type is made public because you will receive a Box<ArcInner<T>>
+/// when backdropping.
+#[derive(Debug)]
 #[repr(C)]
-pub(crate) struct ArcInner<T: ?Sized> {
+pub struct ArcInner<T: ?Sized> {
     pub(crate) count: atomic::AtomicUsize,
     pub(crate) data: T,
 }
@@ -73,16 +77,16 @@ unsafe impl<T: ?Sized + Sync + Send> Sync for ArcInner<T> {}
 ///
 /// [`Arc`]: https://doc.rust-lang.org/stable/std/sync/struct.Arc.html
 #[repr(transparent)]
-pub struct Arc<T: ?Sized, S: BackdropStrategy<Box<T>>> {
+pub struct Arc<T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> {
     pub(crate) p: ptr::NonNull<ArcInner<T>>,
     pub(crate) phantom: PhantomData<T>,
     pub(crate) phantom_strategy: PhantomData<S>,
 }
 
-unsafe impl<T: ?Sized + Sync + Send, S> Send for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
-unsafe impl<T: ?Sized + Sync + Send, S> Sync for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
+unsafe impl<T: ?Sized + Sync + Send, S> Send for Arc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
+unsafe impl<T: ?Sized + Sync + Send, S> Sync for Arc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
 
-impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
+impl<T, S: BackdropStrategy<Box<ArcInner<T>>>> Arc<T, S> {
     /// Construct an `Arc<T, S>`
     #[inline]
     pub fn new(data: T) -> Self {
@@ -102,7 +106,7 @@ impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
 
     /// Alter the strategy that is used for an Arc<T, S> to another.
     /// This is a zero-cost operation.
-    pub fn with_strategy<S2: BackdropStrategy<Box<T>>>(arc: Arc<T, S>) -> Arc<T, S2> {
+    pub fn with_strategy<S2: BackdropStrategy<Box<ArcInner<T>>>>(arc: Arc<T, S>) -> Arc<T, S2> {
         // Safety: S and S2 are ZSTs which only do something at drop-time
         unsafe { core::mem::transmute(arc) }
     }
@@ -182,7 +186,7 @@ impl<T, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     }
 }
 
-impl<T, S: BackdropStrategy<Box<[T]>>> Arc<[T], S> {
+impl<T, S: BackdropStrategy<Box<ArcInner<[T]>>>> Arc<[T], S> {
     /// Reconstruct the `Arc<[T]>` from a raw pointer obtained from `into_raw()`.
     ///
     /// [`Arc::from_raw`] should accept unsized types, but this is not trivial to do correctly
@@ -201,7 +205,7 @@ impl<T, S: BackdropStrategy<Box<[T]>>> Arc<[T], S> {
     }
 }
 
-impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Arc<T, S> {
+impl<T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> Arc<T, S> {
     /// Convert the Arc<T, S> to a raw pointer, suitable for use across FFI
     ///
     /// Note: This returns a pointer to the data T, which is offset in the allocation.
@@ -357,7 +361,7 @@ impl<T: ?Sized, S: BackdropStrategy<Box<T>>> Arc<T, S> {
     }
 }
 
-impl<H, T, S: BackdropStrategy<Box<HeaderSlice<H, [T]>>>> Arc<HeaderSlice<H, [T]>, S> {
+impl<H, T, S: BackdropStrategy<Box<ArcInner<HeaderSlice<H, [T]>>>>> Arc<HeaderSlice<H, [T]>, S> {
     pub(super) fn allocate_for_header_and_slice(
         len: usize,
     ) -> NonNull<ArcInner<HeaderSlice<H, [T]>>> {
@@ -387,8 +391,8 @@ impl<H, T, S: BackdropStrategy<Box<HeaderSlice<H, [T]>>>> Arc<HeaderSlice<H, [T]
 
 impl<T, S> Arc<MaybeUninit<T>, S>
 where
-    S: BackdropStrategy<Box<MaybeUninit<T>>>,
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<MaybeUninit<T>>>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     /// Create an Arc contains an `MaybeUninit<T>`.
     pub fn new_uninit() -> Self {
@@ -425,9 +429,9 @@ where
 
 impl<T, S> Arc<[MaybeUninit<T>], S>
 where
-    S: BackdropStrategy<Box<HeaderSlice<(), [MaybeUninit<T>]>>>,
-    S: BackdropStrategy<Box<[MaybeUninit<T>]>>,
-    S: BackdropStrategy<Box<[T]>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), [MaybeUninit<T>]>>>>,
+    S: BackdropStrategy<Box<ArcInner<[MaybeUninit<T>]>>>,
+    S: BackdropStrategy<Box<ArcInner<[T]>>>,
 {
     /// Create an Arc contains an array `[MaybeUninit<T>]` of `len`.
     pub fn new_uninit_slice(len: usize) -> Self {
@@ -455,7 +459,7 @@ where
 
 impl<T: ?Sized, S> Clone for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -497,7 +501,7 @@ where
 
 impl<T: ?Sized, S> Deref for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     type Target = T;
 
@@ -509,7 +513,7 @@ where
 
 impl<T: Clone, S> Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     /// Makes a mutable reference to the `Arc`, cloning if necessary
     ///
@@ -573,7 +577,7 @@ where
 
 impl<T: ?Sized, S> Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     /// Provides mutable access to the contents _if_ the `Arc` is uniquely owned.
     #[inline]
@@ -649,7 +653,7 @@ where
 
 impl<T: ?Sized, S> Drop for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     #[inline]
     fn drop(&mut self) {
@@ -689,7 +693,7 @@ where
 
 impl<T: ?Sized + PartialEq, S> PartialEq for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn eq(&self, other: &Arc<T, S>) -> bool {
         Self::ptr_eq(self, other) || *(*self) == *(*other)
@@ -703,7 +707,7 @@ where
 
 impl<T: ?Sized + PartialOrd, S> PartialOrd for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn partial_cmp(&self, other: &Arc<T, S>) -> Option<Ordering> {
         (**self).partial_cmp(&**other)
@@ -728,18 +732,18 @@ where
 
 impl<T: ?Sized + Ord, S> Ord for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn cmp(&self, other: &Arc<T, S>) -> Ordering {
         (**self).cmp(&**other)
     }
 }
 
-impl<T: ?Sized + Eq, S> Eq for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
+impl<T: ?Sized + Eq, S> Eq for Arc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
 
 impl<T: ?Sized + fmt::Display, S> fmt::Display for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
@@ -748,7 +752,7 @@ where
 
 impl<T: ?Sized + fmt::Debug, S> fmt::Debug for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
@@ -757,7 +761,7 @@ where
 
 impl<T: ?Sized, S> fmt::Pointer for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Pointer::fmt(&self.ptr(), f)
@@ -766,7 +770,7 @@ where
 
 impl<T: Default, S> Default for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     #[inline]
     fn default() -> Arc<T, S> {
@@ -776,14 +780,14 @@ where
 
 impl<T: ?Sized + Hash, S> Hash for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         (**self).hash(state)
     }
 }
 
-impl<T, S: BackdropStrategy<Box<T>>> From<T> for Arc<T, S> {
+impl<T, S: BackdropStrategy<Box<ArcInner<T>>>> From<T> for Arc<T, S> {
     #[inline]
     fn from(t: T) -> Self {
         Arc::new(t)
@@ -795,7 +799,7 @@ extern crate triomphe;
 
 #[cfg(feature = "triomphe")]
 /// Converting to- and from a [`triomphe::Arc<T>`] is a zero-cost operation
-impl<T, S: BackdropStrategy<Box<T>>> From<triomphe::Arc<T>> for Arc<T, S> {
+impl<T, S: BackdropStrategy<Box<ArcInner<T>>>> From<triomphe::Arc<T>> for Arc<T, S> {
     #[inline]
     fn from(arc: triomphe::Arc<T>) -> Self {
         unsafe { core::mem::transmute(arc) }
@@ -804,7 +808,7 @@ impl<T, S: BackdropStrategy<Box<T>>> From<triomphe::Arc<T>> for Arc<T, S> {
 
 #[cfg(feature = "triomphe")]
 /// Converting to- and from a [`triomphe::Arc<T>`] is a zero-cost operation
-impl<T, S: BackdropStrategy<Box<T>>> From<Arc<T, S>> for triomphe::Arc<T> {
+impl<T, S: BackdropStrategy<Box<ArcInner<T>>>> From<Arc<T, S>> for triomphe::Arc<T> {
     #[inline]
     fn from(arc: Arc<T, S>) -> Self {
         unsafe { core::mem::transmute(arc) }
@@ -813,8 +817,8 @@ impl<T, S: BackdropStrategy<Box<T>>> From<Arc<T, S>> for triomphe::Arc<T> {
 
 impl<A, S: BackdropStrategy<Box<[A]>>> FromIterator<A> for Arc<[A], S>
 where
-    S: BackdropStrategy<Box<[A]>>,
-    S: BackdropStrategy<Box<HeaderSlice<(), [A]>>>,
+    S: BackdropStrategy<Box<ArcInner<[A]>>>,
+    S: BackdropStrategy<Box<ArcInner<HeaderSlice<(), [A]>>>>,
 {
     fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
         UniqueArc::from_iter(iter).shareable()
@@ -823,7 +827,7 @@ where
 
 impl<T: ?Sized, S> borrow::Borrow<T> for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     #[inline]
     fn borrow(&self) -> &T {
@@ -833,7 +837,7 @@ where
 
 impl<T: ?Sized, S> AsRef<T> for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     #[inline]
     fn as_ref(&self) -> &T {
@@ -842,14 +846,14 @@ where
 }
 
 #[cfg(feature = "stable_deref_trait")]
-unsafe impl<T: ?Sized, S> StableDeref for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
+unsafe impl<T: ?Sized, S> StableDeref for Arc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
 #[cfg(feature = "stable_deref_trait")]
-unsafe impl<T: ?Sized, S> CloneStableDeref for Arc<T, S> where S: BackdropStrategy<Box<T>> {}
+unsafe impl<T: ?Sized, S> CloneStableDeref for Arc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
 
 #[cfg(feature = "serde")]
 impl<'de, T: Deserialize<'de>, S> Deserialize<'de> for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Arc<T, S>, D::Error>
     where
@@ -862,7 +866,7 @@ where
 #[cfg(feature = "serde")]
 impl<T: Serialize, S> Serialize for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
     where
@@ -875,7 +879,7 @@ where
 #[cfg(feature = "yoke")]
 unsafe impl<T, S> yoke::CloneableCart for Arc<T, S>
     where
-    S: BackdropStrategy<Box<T>>
+    S: BackdropStrategy<Box<ArcInner<T>>>
 {}
 
 // Safety:
@@ -888,8 +892,8 @@ unsafe impl<T, S> yoke::CloneableCart for Arc<T, S>
 #[cfg(feature = "unsize")]
 unsafe impl<T, U: ?Sized, S> unsize::CoerciblePtr<U> for Arc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
-    S: BackdropStrategy<Box<U>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
+    S: BackdropStrategy<Box<ArcInner<U>>>,
 {
     type Pointee = T;
     type Output = Arc<U, S>;
@@ -918,7 +922,7 @@ where
 #[track_caller]
 fn must_be_unique<T: ?Sized, S>(arc: &mut Arc<T, S>) -> &mut UniqueArc<T, S>
 where
-    S: BackdropStrategy<Box<T>>,
+    S: BackdropStrategy<Box<ArcInner<T>>>,
 {
     match Arc::try_as_unique(arc) {
         Ok(unique) => unique,
