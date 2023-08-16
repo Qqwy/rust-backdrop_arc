@@ -506,6 +506,73 @@ where
     }
 }
 
+#[derive(Debug, Hash, Clone, )]
+pub struct ArcCloneIter<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> {
+    orig: &'a Arc<T, S>,
+    arcs_left: usize
+}
+
+impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> ArcCloneIter<'a, T, S> {
+    fn new(orig: &'a Arc<T, S>, count: usize) -> Self {
+        // Just like inside `clone`, we can use a Relaxed ordering:
+        // Being passed `orig: &Arc<T, S>` ensures that for the duration of this function
+        // (and the lifetime of the ArcCloneIter it returns),
+        // `orig` has a refcount higher than 0.
+        // Therefore other threads will not erroneously delete it before the critical section is over
+        let _ = orig.inner().count.fetch_update(Relaxed, Relaxed, |c| {
+            // Two safety checks are necessary:
+            // 1) abort if we overflow the full usize::MAX space
+            // necessary since we increase by a large step
+            let val = c.checked_add(count).unwrap_or_else(|| abort());
+            // 2) abort if we overflow the MAX_REFCOUNT, just like normal `clone()`
+            if val > MAX_REFCOUNT {
+                abort();
+            }
+            Some(val)
+        });
+
+        Self {orig, arcs_left: count}
+    }
+}
+
+impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> Drop for ArcCloneIter<'a, T, S> {
+    fn drop(&mut self) {
+        // Note that the last arc can never be deleted here, because we have a reference to that arc ('orig').
+        // So no need to add the `drop_slow` logic in here
+
+        let _ = self.orig.inner().count.fetch_update(Relaxed, Relaxed, |c| {
+            // Abort if we underflow
+            let val = c.checked_sub(self.arcs_left).unwrap_or_else(|| abort());
+            Some(val)
+        });
+    }
+}
+
+impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> Iterator for ArcCloneIter<'a, T, S> {
+    type Item = Arc<T, S>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.arcs_left == 0 {
+            return None
+        }
+        self.arcs_left -= 1;
+
+        // SAFETY: we only make a new arc when there still are refcounts left to give out
+        let new_arc = unsafe {
+            Arc {
+                p: ptr::NonNull::new_unchecked(self.orig.ptr()),
+                phantom: PhantomData,
+                phantom_strategy: PhantomData,
+            }
+        };
+        Some(new_arc)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.arcs_left, Some(self.arcs_left))
+    }
+}
+
 impl<T: ?Sized, S> Arc<T, S>
 where
     S: BackdropStrategy<Box<ArcInner<T>>>,
@@ -529,78 +596,11 @@ where
     /// use std::mem::MaybeUninit;
     ///
     /// let myarc: Arc<u32, TrivialStrategy> = Arc::new(42);
-    /// let many_clones = Arc::clone_many(&myarc, 1000);
+    /// let many_clones: Vec<_> = Arc::clone_many(&myarc, 1000).collect();
     /// assert_eq!(Arc::count(&myarc), 1001);
     /// ```
-    pub fn clone_many(this: &Self, inc: usize) -> Box<[Self]> {
-        let mut slice: Box<[MaybeUninit<Self>]> = core::iter::repeat_with(|| MaybeUninit::uninit())
-            .take(inc)
-            .collect();
-        Self::clone_many_into_slice(this, &mut slice);
-        // SAFETY: All elements are now initialized
-        let slice: Box<[Self]> = unsafe { core::mem::transmute(slice) };
-        slice
-    }
-
-    /// Version of `clone_many` which allows the caller to decide where the arcs are stored.
-    /// The amount of clones to make is inferred from the length of the slice.
-    ///
-    /// # Safety
-    /// After this method is called, `target`'s elements are all initialized,
-    /// so you should transmute the container containing the slice.
-    ///
-    /// *Forgetting to do so will leak the Arc*
-    /// (which is safe, but usually undesireable).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use backdrop_arc::Arc;
-    /// use std::mem::MaybeUninit;
-    /// use backdrop_arc::TrivialStrategy as S;
-    ///
-    /// let myarc = Arc::new(42);
-    /// let mut myvec_uninit: Vec<MaybeUninit<Arc<u32, S>>> = std::iter::repeat_with(|| MaybeUninit::uninit()).take(1000).collect();
-    /// Arc::clone_many_into_slice(&myarc, myvec_uninit.as_mut_slice());
-    /// // SAFETY: At this point, all of the elements in the vec are initialized:
-    /// let myvec_init: Vec<Arc<u32, S>> = unsafe { core::mem::transmute(myvec_uninit) };
-    /// assert_eq!(Arc::count(&myarc), 1001);
-    /// ```
-    ///
-    /// # Failure scenarios
-    /// - Aborts if increasing the reference count by `inc` results in a refcount higher than isize::MAX,
-    ///   to make sure the refcount never overflows.
-    ///   (The only way to trigger this in a program is by `mem::forget`ting Arcs in a loop).
-    pub fn clone_many_into_slice<'a>(this: &Self, target: &'a mut [MaybeUninit<Self>]) {
-        let inc = target.len();
-
-        // Just like inside `clone`, we can use a Relaxed ordering:
-        // Being passed `this: &Self` ensures that for the duration of clone_many,
-        // `this` has a refcount higher than 0.
-        // Therefore other threads will not erroneously delete it before we're done.
-        let _ = this.inner().count.fetch_update(Relaxed, Relaxed, |c| {
-            // Two safety checks are necessary:
-            // 1) abort if we overflow the full usize::MAX space
-            // necessary since we increase by a large step
-            let val = c.checked_add(inc).unwrap_or_else(|| abort());
-            // 2) abort if we overflow the MAX_REFCOUNT, just like normal `clone()`
-            if val > MAX_REFCOUNT {
-                abort();
-            }
-            Some(val)
-        });
-
-        // SAFETY:
-        // Exactly as many arcs are returned as the increment to the refcount
-        unsafe {
-            for elem in &mut *target {
-                *elem = MaybeUninit::new(Arc {
-                    p: ptr::NonNull::new_unchecked(this.ptr()),
-                    phantom: PhantomData,
-                    phantom_strategy: PhantomData,
-                })
-            }
-        }
+    pub fn clone_many<'a>(this: &'a Self, inc: usize) -> ArcCloneIter<'a, T, S> {
+        ArcCloneIter::new(this, inc)
     }
 }
 
