@@ -1,6 +1,6 @@
 [package]
 name = "backdrop_arc"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Qqwy / Marten"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Qqwy/rust-backdrop_arc"
