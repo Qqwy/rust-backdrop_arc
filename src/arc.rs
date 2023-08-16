@@ -59,6 +59,7 @@ unsafe impl<T: ?Sized + Sync + Send> Sync for ArcInner<T> {}
 ///
 /// Basic usage is as follows:
 /// ```
+/// # #[cfg(feature = "std")] {
 /// extern crate backdrop;
 /// use backdrop_arc::Arc;
 /// use backdrop::{DebugStrategy, TrivialStrategy};
@@ -71,6 +72,7 @@ unsafe impl<T: ?Sized + Sync + Send> Sync for ArcInner<T> {}
 ///
 /// assert_eq!(mynum, mynum2);
 /// // <- Because we are using the DebugStrategy, info is printed when the arcs go out of scope
+/// # }
 /// ```
 ///
 /// See [`backdrop::Backdrop`] for more info.
@@ -559,6 +561,11 @@ where
     /// let myvec_init: Vec<Arc<u32, S>> = unsafe { core::mem::transmute(myvec_uninit) };
     /// assert_eq!(Arc::count(&myarc), 1001);
     /// ```
+    ///
+    /// # Failure scenarios
+    /// - Aborts if increasing the reference count by `inc` results in a refcount higher than isize::MAX,
+    ///   to make sure the refcount never overflows.
+    ///   (The only way to trigger this in a program is by `mem::forget`ting Arcs in a loop).
     pub fn clone_many_into_slice(this: &Self, target: &mut [MaybeUninit<Self>]) {
         let inc = target.len();
 
