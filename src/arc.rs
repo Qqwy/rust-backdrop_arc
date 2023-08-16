@@ -8,7 +8,7 @@ use core::convert::From;
 use core::ffi::c_void;
 use core::fmt;
 use core::hash::{Hash, Hasher};
-use core::iter::FromIterator;
+use core::iter::{FromIterator, FusedIterator};
 use core::marker::PhantomData;
 use core::mem::{ManuallyDrop, MaybeUninit};
 use core::ops::Deref;
@@ -518,10 +518,11 @@ where
 #[derive(Debug, Hash, Clone)]
 pub struct ArcCloneIter<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> {
     orig: &'a Arc<T, S>,
-    arcs_left: usize
+    arcs_left: usize,
 }
 
 impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> ArcCloneIter<'a, T, S> {
+    #[inline]
     fn new(orig: &'a Arc<T, S>, count: usize) -> Self {
         // Just like inside `clone`, we can use a Relaxed ordering:
         // Being passed `orig: &Arc<T, S>` ensures that for the duration of this function
@@ -540,13 +541,16 @@ impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> ArcCloneIter<'a, T, S
             Some(val)
         });
 
-        Self {orig, arcs_left: count}
+        Self {
+            orig,
+            arcs_left: count,
+        }
     }
 }
 
 impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> Drop for ArcCloneIter<'a, T, S> {
+    #[inline]
     fn drop(&mut self) {
-
         // If no arcs are left, no cleanup is necessary
         if self.arcs_left == 0 {
             return;
@@ -566,9 +570,10 @@ impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> Drop for ArcCloneIter
 impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> Iterator for ArcCloneIter<'a, T, S> {
     type Item = Arc<T, S>;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.arcs_left == 0 {
-            return None
+            return None;
         }
         self.arcs_left -= 1;
 
@@ -583,9 +588,15 @@ impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> Iterator for ArcClone
         Some(new_arc)
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.arcs_left, Some(self.arcs_left))
     }
+}
+
+impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> FusedIterator
+    for ArcCloneIter<'a, T, S>
+{
 }
 
 impl<T: ?Sized, S> Arc<T, S>
