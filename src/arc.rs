@@ -33,10 +33,12 @@ use crate::{abort, ArcBorrow, HeaderSlice, OffsetArc, UniqueArc};
 /// necessarily) at _exactly_ `MAX_REFCOUNT + 1` references.
 const MAX_REFCOUNT: usize = (isize::MAX) as usize;
 
-/// The object allocated by an Arc<T, S>
+/// The internal object allocated by an Arc<T, S>.
 ///
-/// Its internals are hidden, but the type is made public because you will receive a Box<ArcInner<T>>
-/// when backdropping.
+/// (The structure which contains the reference count and `T` itself.)
+///
+/// Its internals are hidden, but the type is made public
+/// because you will receive a `Box<ArcInner<T>>` when backdropping.
 #[derive(Debug)]
 #[repr(C)]
 pub struct ArcInner<T: ?Sized> {
@@ -610,23 +612,36 @@ where
     /// we increase the reference count by `inc` _once_,
     /// needing only a single atomic barrier.
     ///
+    ///
     /// # Failure scenarios
-    /// - Panics if `inc` is higher than `isize::MAX`, because of allocation failure.
     /// - Aborts if increasing the reference count by `inc` results in a refcount higher than isize::MAX,
     ///   to make sure the refcount never overflows.
     ///   (The only way to trigger this in a program is by `mem::forget`ting Arcs in a loop).
     ///
     ///
+    /// # Examples
+    ///
+    /// The resulting iterator gives out exactly `count` `Arc`s:
     /// ```
     /// use backdrop_arc::{Arc, TrivialStrategy};
-    /// use std::mem::MaybeUninit;
     ///
     /// let myarc: Arc<u32, TrivialStrategy> = Arc::new(42);
     /// let many_clones: Vec<_> = Arc::clone_many(&myarc, 1000).collect();
     /// assert_eq!(Arc::count(&myarc), 1001);
     /// ```
-    pub fn clone_many<'a>(this: &'a Self, inc: usize) -> ArcCloneIter<'a, T, S> {
-        ArcCloneIter::new(this, inc)
+    ///
+    /// If the iterator is dropped before all of them are given out,
+    /// the reference count is decreased by the leftover amount (also in one atomic barier):
+    ///
+    /// ```
+    /// use backdrop_arc::{Arc, TrivialStrategy};
+    ///
+    /// let myarc: Arc<u32, TrivialStrategy> = Arc::new(42);
+    /// let many_clones: Vec<_> = Arc::clone_many(&myarc, 1000).take(100).collect();
+    /// assert_eq!(Arc::count(&myarc), 101);
+    /// ```
+    pub fn clone_many<'a>(this: &'a Self, count: usize) -> ArcCloneIter<'a, T, S> {
+        ArcCloneIter::new(this, count)
     }
 }
 
