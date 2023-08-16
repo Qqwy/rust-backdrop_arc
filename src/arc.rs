@@ -83,8 +83,14 @@ pub struct Arc<T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> {
     pub(crate) phantom_strategy: PhantomData<S>,
 }
 
-unsafe impl<T: ?Sized + Sync + Send, S> Send for Arc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
-unsafe impl<T: ?Sized + Sync + Send, S> Sync for Arc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
+unsafe impl<T: ?Sized + Sync + Send, S> Send for Arc<T, S> where
+    S: BackdropStrategy<Box<ArcInner<T>>>
+{
+}
+unsafe impl<T: ?Sized + Sync + Send, S> Sync for Arc<T, S> where
+    S: BackdropStrategy<Box<ArcInner<T>>>
+{
+}
 
 impl<T, S: BackdropStrategy<Box<ArcInner<T>>>> Arc<T, S> {
     /// Construct an `Arc<T, S>`
@@ -526,7 +532,9 @@ where
     /// assert_eq!(Arc::count(&myarc), 1001);
     /// ```
     pub fn clone_many(this: &Self, inc: usize) -> Box<[Self]> {
-        let mut slice: Box<[MaybeUninit<Self>]> = std::iter::repeat_with(|| MaybeUninit::uninit()).take(inc).collect();
+        let mut slice: Box<[MaybeUninit<Self>]> = std::iter::repeat_with(|| MaybeUninit::uninit())
+            .take(inc)
+            .collect();
         Self::clone_many_into_slice(this, &mut slice);
         // SAFETY: All elements are now initialized
         let slice: Box<[Self]> = unsafe { core::mem::transmute(slice) };
@@ -584,8 +592,6 @@ where
         }
     }
 }
-
-
 
 impl<T: ?Sized, S> Deref for Arc<T, S>
 where
@@ -965,10 +971,7 @@ where
 }
 
 #[cfg(feature = "yoke")]
-unsafe impl<T, S> yoke::CloneableCart for Arc<T, S>
-    where
-    S: BackdropStrategy<Box<ArcInner<T>>>
-{}
+unsafe impl<T, S> yoke::CloneableCart for Arc<T, S> where S: BackdropStrategy<Box<ArcInner<T>>> {}
 
 // Safety:
 // This implementation must guarantee that it is sound to call replace_ptr with an unsized variant
