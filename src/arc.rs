@@ -506,7 +506,16 @@ where
     }
 }
 
-#[derive(Debug, Hash, Clone, )]
+/// Iterator type to give out many clones an arc without the overhead of calling `clone` every time.
+///
+/// Return type of [`Arc::clone_many`].
+///
+/// This iterator will increase the refcount by the desired amount _in one atomic operation_ during creation,
+/// and if the iterator is dropped before that many arcs are extracted from it,
+/// we decrease the refcount by the leftover amount _in one atomic operation_ to make sure the arc is not leaked.
+///
+/// (if the iterator is empty, this step is of course skipped)
+#[derive(Debug, Hash, Clone)]
 pub struct ArcCloneIter<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> {
     orig: &'a Arc<T, S>,
     arcs_left: usize
@@ -537,9 +546,15 @@ impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> ArcCloneIter<'a, T, S
 
 impl<'a, T: ?Sized, S: BackdropStrategy<Box<ArcInner<T>>>> Drop for ArcCloneIter<'a, T, S> {
     fn drop(&mut self) {
-        // Note that the last arc can never be deleted here, because we have a reference to that arc ('orig').
-        // So no need to add the `drop_slow` logic in here
 
+        // If no arcs are left, no cleanup is necessary
+        if self.arcs_left == 0 {
+            return;
+        }
+
+        // Otherwise, make sure we decrease the refcount by the leftover amount
+        // Note that we don't need to check whether we reach refcount 0 (and then drop the contents of the arc):
+        // since we have the reference `orig`, the refcount will always be > 0
         let _ = self.orig.inner().count.fetch_update(Relaxed, Relaxed, |c| {
             // Abort if we underflow
             let val = c.checked_sub(self.arcs_left).unwrap_or_else(|| abort());
