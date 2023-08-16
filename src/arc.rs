@@ -61,16 +61,16 @@ unsafe impl<T: ?Sized + Sync + Send> Sync for ArcInner<T> {}
 /// ```
 /// extern crate backdrop;
 /// use backdrop_arc::Arc;
-/// use backdrop::LeakStrategy;
+/// use backdrop::{DebugStrategy, TrivialStrategy};
 ///
 /// // Either specify the return type:
-/// let mynum: Arc<usize, LeakStrategy> = Arc::new(42);
+/// let mynum: Arc<usize, DebugStrategy<TrivialStrategy>> = Arc::new(42);
 ///
 /// // Or use the 'Turbofish' syntax on the function call:
-/// let mynum2 = Arc::<_, LeakStrategy>::new(42);
+/// let mynum2 = Arc::<_, DebugStrategy<TrivialStrategy>>::new(42);
 ///
 /// assert_eq!(mynum, mynum2);
-/// // <- Because we are using the LeakStrategy, we leak memory here. Fun! :-)
+/// // <- Because we are using the DebugStrategy, info is printed when the arcs go out of scope
 /// ```
 ///
 /// See [`backdrop::Backdrop`] for more info.
