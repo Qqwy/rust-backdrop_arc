@@ -60,9 +60,8 @@ unsafe impl<T: ?Sized + Sync + Send> Sync for ArcInner<T> {}
 /// Basic usage is as follows:
 /// ```
 /// # #[cfg(feature = "std")] {
-/// extern crate backdrop;
 /// use backdrop_arc::Arc;
-/// use backdrop::{DebugStrategy, TrivialStrategy};
+/// use backdrop_arc::{DebugStrategy, TrivialStrategy};
 ///
 /// // Either specify the return type:
 /// let mynum: Arc<usize, DebugStrategy<TrivialStrategy>> = Arc::new(42);

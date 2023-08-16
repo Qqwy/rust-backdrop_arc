@@ -49,6 +49,7 @@
 //! - `arc-swap`: Use [`Arc`] together with the [`arc-swap`](https://crates.io/crates/arc-swap) crate.
 //! - `triomphe`: Convert (zero-cost) between [`triomphe::Arc`] <-> [`Arc`] (and [`UniqueArc`] <-> [`triomphe::UniqueArc`]).
 //! - `unsize` use [`Arc`] together with the [`unsize`](https://crates.io/crates/unsize) crate.
+//! - `yoke`: Implements the [`CloneableCart`](https://docs.rs/yoke/0.6.2/yoke/trait.CloneableCart.html) trait from the the [`yoke`](https://crates.io/crates/yoke) crate for [`backdrop_arc::Arc`], making it easier to use in zero-copy serialization scenarios.
 //!
 //!
 //! ## Attribution
