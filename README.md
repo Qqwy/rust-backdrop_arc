@@ -59,6 +59,7 @@ Not supporting weak pointers enables a bunch of other features:
 - `arc-swap`: Use [`backdrop_arc::Arc`] together with the [`arc-swap`](https://crates.io/crates/arc-swap) crate.
 - `triomphe`: Convert (zero-cost) between [`triomphe::Arc`] <-> [`backdrop_arc::Arc`] (and [`backdrop_arc::UniqueArc`] <-> [`triomphe::UniqueArc`]).
 - `unsize` use [`backdrop_arc::Arc`] together with the [`unsize`](https://crates.io/crates/unsize) crate.
+- `yoke`: Implements the [`CloneableCart`](https://docs.rs/yoke/0.6.2/yoke/trait.CloneableCart.html) trait from the the [`yoke`](https://crates.io/crates/yoke) crate for [`backdrop_arc::Arc`], making it easier to use in zero-copy serialization scenarios.
 
 [`triomphe::Arc`]: <https://docs.rs/triomphe/latest/triomphe/struct.Arc.html>
 [`triomphe::UniqueArc`]: <https://docs.rs/triomphe/latest/triomphe/struct.UniqueArc.html>
@@ -73,3 +74,10 @@ which itself originates from [`servo_arc`](https://crates.io/crates/servo_arc).
 
 The Minimum Supported Rust Version of backdrop_arc is Rust 1.56.1, because `backdrop` uses the edition 2021 Rust syntax.
 There are no (required) Rust features or (required) dependencies besides `backdrop`, making this a very lightweight and portable crate.
+
+## Changelog
+
+- 0.2.0:
+  - Adds optional support for `yoke` (to use a `backdrop_arc::Arc` as a [`yoke::CloneableCart`](https://docs.rs/yoke/0.6.2/yoke/trait.CloneableCart.html)). Enable with the `yoke` feature.
+  - Adds `Arc::clone_many` and `Arc::clone_many_into_slice`, allowing you to clone an Arc many times at once with only a single atomic barrier.
+- 0.1.x: Initial version
