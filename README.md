@@ -77,6 +77,8 @@ There are no (required) Rust features or (required) dependencies besides `backdr
 
 ## Changelog
 
+- 0.3.0:
+  - Replace `Arc::clone_many` with a much more friendly implementation + signature, returning a new iterator type.
 - 0.2.0:
   - Adds optional support for `yoke` (to use a `backdrop_arc::Arc` as a [`yoke::CloneableCart`](https://docs.rs/yoke/0.6.2/yoke/trait.CloneableCart.html)). Enable with the `yoke` feature.
   - Adds `Arc::clone_many` and `Arc::clone_many_into_slice`, allowing you to clone an Arc many times at once with only a single atomic barrier.
