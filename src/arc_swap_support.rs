@@ -2,6 +2,7 @@ use super::backdrop::BackdropStrategy;
 use arc_swap::RefCnt;
 
 use crate::Arc;
+use crate::arc::ArcInner;
 
 unsafe impl<T, S> RefCnt for Arc<T, S>
 where
