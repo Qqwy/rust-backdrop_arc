@@ -499,6 +499,101 @@ where
     }
 }
 
+impl<T: ?Sized, S> Arc<T, S>
+where
+    S: BackdropStrategy<Box<ArcInner<T>>>,
+{
+    /// Optimization over calling `clone()` many times:
+    ///
+    /// Instead of incrementing the reference count by one many times
+    /// (which requires an atomic barrier each time)
+    /// we increase the reference count by `inc` _once_,
+    /// needing only a single atomic barrier.
+    ///
+    /// # Failure scenarios
+    /// - Panics if `inc` is higher than `isize::MAX`, because of allocation failure.
+    /// - Aborts if increasing the reference count by `inc` results in a refcount higher than isize::MAX,
+    ///   to make sure the refcount never overflows.
+    ///   (The only way to trigger this in a program is by `mem::forget`ting Arcs in a loop).
+    ///
+    ///
+    /// ```
+    /// use backdrop_arc::{Arc, TrivialStrategy};
+    /// use std::mem::MaybeUninit;
+    ///
+    /// let myarc: Arc<u32, TrivialStrategy> = Arc::new(42);
+    /// let many_clones = Arc::clone_many(&myarc, 1000);
+    /// assert_eq!(Arc::count(&myarc), 1001);
+    /// ```
+    pub fn clone_many(this: &Self, inc: usize) -> Box<[Self]> {
+        let mut vec: Vec<MaybeUninit<Self>> = Vec::with_capacity(inc);
+        for _i in 0..inc {
+            vec.push(MaybeUninit::uninit());
+        }
+        Self::clone_many_into_slice(this, &mut vec[..]);
+        // SAFETY: All elements are now initialized
+        let vec: Vec<Self> = unsafe { core::mem::transmute(vec) };
+        vec.into_boxed_slice()
+    }
+
+    /// Version of `clone_many` which allows the caller to decide where the arcs are stored.
+    /// The amount of clones to make is inferred from the length of the slice.
+    ///
+    /// After this method is called, `target`'s elements are all initialized,
+    /// so you can transmute it:
+    ///
+    /// ```
+    /// use backdrop_arc::Arc;
+    /// use std::mem::MaybeUninit;
+    /// use backdrop_arc::TrivialStrategy as S;
+    ///
+    /// let myarc = Arc::new(42);
+    /// let mut myvec_uninit: Vec<MaybeUninit<Arc<u32, S>>> = Vec::with_capacity(1000);
+    /// // SAFETY:
+    /// // - we do not overflow the capacity
+    /// // - MaybeUninit<T> elements can always be considered 'initialized'.
+    /// unsafe { myvec_uninit.set_len(1000) };
+    /// Arc::clone_many_into_slice(&myarc, myvec_uninit.as_mut_slice());
+    /// // SAFETY: At this point, all of the elements in the vec are initialized:
+    /// let myvec_init: Vec<Arc<u32, S>> = unsafe { core::mem::transmute(myvec_uninit) };
+    /// assert_eq!(Arc::count(&myarc), 1001);
+    /// ```
+    pub fn clone_many_into_slice(this: &Self, target: &mut [MaybeUninit<Self>]) {
+        let inc = target.len();
+
+        // Just like inside `clone`, we can use a Relaxed ordering:
+        // Being passed `this: &Self` ensures that for the duration of clone_many,
+        // `this` has a refcount higher than 0.
+        // Therefore other threads will not erroneously delete it before we're done.
+        let _ = this.inner().count.fetch_update(Relaxed, Relaxed, |c| {
+            println!("Incrementing count by {inc}");
+            // Two safety checks are necessary:
+            // 1) abort if we overflow the full usize::MAX space
+            // necessary since we increase by a large step
+            let val = c.checked_add(inc).unwrap_or_else(|| abort());
+            // 2) abort if we overflow the MAX_REFCOUNT, just like normal `clone()`
+            if val > MAX_REFCOUNT {
+                abort();
+            }
+            Some(val)
+        });
+
+        // SAFETY:
+        // Exactly as many arcs are returned as the increment to the refcount
+        unsafe {
+            for elem in target {
+                *elem = MaybeUninit::new(Arc {
+                    p: ptr::NonNull::new_unchecked(this.ptr()),
+                    phantom: PhantomData,
+                    phantom_strategy: PhantomData,
+                })
+            }
+        }
+    }
+}
+
+
+
 impl<T: ?Sized, S> Deref for Arc<T, S>
 where
     S: BackdropStrategy<Box<ArcInner<T>>>,
