@@ -526,21 +526,18 @@ where
     /// assert_eq!(Arc::count(&myarc), 1001);
     /// ```
     pub fn clone_many(this: &Self, inc: usize) -> Box<[Self]> {
-        let mut vec: Vec<MaybeUninit<Self>> = Vec::with_capacity(inc);
-        for _i in 0..inc {
-            vec.push(MaybeUninit::uninit());
-        }
-        Self::clone_many_into_slice(this, &mut vec[..]);
+        let mut slice: Box<[MaybeUninit<Self>]> = std::iter::repeat_with(|| MaybeUninit::uninit()).take(inc).collect();
+        Self::clone_many_into_slice(this, &mut slice);
         // SAFETY: All elements are now initialized
-        let vec: Vec<Self> = unsafe { core::mem::transmute(vec) };
-        vec.into_boxed_slice()
+        let slice: Box<[Self]> = unsafe { core::mem::transmute(slice) };
+        slice
     }
 
     /// Version of `clone_many` which allows the caller to decide where the arcs are stored.
     /// The amount of clones to make is inferred from the length of the slice.
     ///
     /// After this method is called, `target`'s elements are all initialized,
-    /// so you can transmute it:
+    /// so you can `MaybeUninit::assume_init()` them, or transmute the slice as a whole:
     ///
     /// ```
     /// use backdrop_arc::Arc;
@@ -548,11 +545,7 @@ where
     /// use backdrop_arc::TrivialStrategy as S;
     ///
     /// let myarc = Arc::new(42);
-    /// let mut myvec_uninit: Vec<MaybeUninit<Arc<u32, S>>> = Vec::with_capacity(1000);
-    /// // SAFETY:
-    /// // - we do not overflow the capacity
-    /// // - MaybeUninit<T> elements can always be considered 'initialized'.
-    /// unsafe { myvec_uninit.set_len(1000) };
+    /// let mut myvec_uninit: Vec<MaybeUninit<Arc<u32, S>>> = std::iter::repeat_with(|| MaybeUninit::uninit()).take(1000).collect();
     /// Arc::clone_many_into_slice(&myarc, myvec_uninit.as_mut_slice());
     /// // SAFETY: At this point, all of the elements in the vec are initialized:
     /// let myvec_init: Vec<Arc<u32, S>> = unsafe { core::mem::transmute(myvec_uninit) };
