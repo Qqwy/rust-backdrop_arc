@@ -532,7 +532,7 @@ where
     /// assert_eq!(Arc::count(&myarc), 1001);
     /// ```
     pub fn clone_many(this: &Self, inc: usize) -> Box<[Self]> {
-        let mut slice: Box<[MaybeUninit<Self>]> = std::iter::repeat_with(|| MaybeUninit::uninit())
+        let mut slice: Box<[MaybeUninit<Self>]> = core::iter::repeat_with(|| MaybeUninit::uninit())
             .take(inc)
             .collect();
         Self::clone_many_into_slice(this, &mut slice);
@@ -567,7 +567,6 @@ where
         // `this` has a refcount higher than 0.
         // Therefore other threads will not erroneously delete it before we're done.
         let _ = this.inner().count.fetch_update(Relaxed, Relaxed, |c| {
-            println!("Incrementing count by {inc}");
             // Two safety checks are necessary:
             // 1) abort if we overflow the full usize::MAX space
             // necessary since we increase by a large step
