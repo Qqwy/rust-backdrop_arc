@@ -545,8 +545,14 @@ where
     /// Version of `clone_many` which allows the caller to decide where the arcs are stored.
     /// The amount of clones to make is inferred from the length of the slice.
     ///
+    /// # Safety
     /// After this method is called, `target`'s elements are all initialized,
-    /// so you can `MaybeUninit::assume_init()` them, or transmute the container containing the slice as a whole:
+    /// so you should transmute the container containing the slice.
+    ///
+    /// *Forgetting to do so will leak the Arc*
+    /// (which is safe, but usually undesireable).
+    ///
+    /// # Example
     ///
     /// ```
     /// use backdrop_arc::Arc;
@@ -561,23 +567,11 @@ where
     /// assert_eq!(Arc::count(&myarc), 1001);
     /// ```
     ///
-    /// For convenience, we also return a mutable reference to the created slice:
-    /// ```
-    /// use backdrop_arc::Arc;
-    /// use std::mem::MaybeUninit;
-    /// use backdrop_arc::TrivialStrategy as S;
-    ///
-    /// let myarc = Arc::new(42);
-    /// let mut myvec_uninit: Vec<MaybeUninit<Arc<u32, S>>> = std::iter::repeat_with(|| MaybeUninit::uninit()).take(1000).collect();
-    /// let mut_vals_ref = Arc::clone_many_into_slice(&myarc, myvec_uninit.as_mut_slice());
-    /// assert_eq!(Arc::count(&myarc), 1001);
-    /// ```
-    ///
     /// # Failure scenarios
     /// - Aborts if increasing the reference count by `inc` results in a refcount higher than isize::MAX,
     ///   to make sure the refcount never overflows.
     ///   (The only way to trigger this in a program is by `mem::forget`ting Arcs in a loop).
-    pub fn clone_many_into_slice<'a>(this: &Self, target: &'a mut [MaybeUninit<Self>]) -> &'a mut[Self] {
+    pub fn clone_many_into_slice<'a>(this: &Self, target: &'a mut [MaybeUninit<Self>]) {
         let inc = target.len();
 
         // Just like inside `clone`, we can use a Relaxed ordering:
@@ -607,9 +601,6 @@ where
                 })
             }
         }
-
-        // SAFETY: the slice is now filled.
-        unsafe { core::mem::transmute(target) }
     }
 }
 
